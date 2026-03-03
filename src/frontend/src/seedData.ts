@@ -1,0 +1,86 @@
+import type { LocationProfile } from "./types";
+
+export const SEED_LOCATIONS: LocationProfile[] = [
+  {
+    id: "seed-creek-001",
+    name: "Murphy NC – creek",
+    state: "NC",
+    notes: "Creek-side property with good water access",
+    created_at: "2024-09-15T10:00:00Z",
+    updated_at: "2024-11-20T14:30:00Z",
+    energy: {
+      solar_kw: 4,
+      battery_kwh: 10,
+      generator: true,
+      winter_sun_hours: 3.5,
+      daily_kwh_use: 8,
+    },
+    water: {
+      primary_source: "spring",
+      storage_gallons: 500,
+      gravity_option: true,
+      filtration_level: "good",
+    },
+    food: {
+      garden_sqft: 800,
+      chickens_count: 8,
+      goats_count: 2,
+      root_cellar: true,
+      stored_food_months: 6,
+    },
+    comfort: {
+      heat_type: "wood",
+      cooking_type: "mixed",
+      backup_heat: true,
+      backup_cooking: false,
+    },
+    buffers: {
+      fuel_reserve_days: 20,
+      feed_reserve_days: 14,
+      spare_parts_kit: "basic",
+      tools_completeness: 60,
+      resupply_trips_per_month: 3,
+    },
+  },
+  {
+    id: "seed-ridge-002",
+    name: "Murphy NC – ridge",
+    state: "NC",
+    notes: "Ridge property with panoramic views, more solar potential",
+    created_at: "2024-10-01T09:00:00Z",
+    updated_at: "2024-12-01T11:00:00Z",
+    energy: {
+      solar_kw: 7,
+      battery_kwh: 20,
+      generator: false,
+      winter_sun_hours: 4.5,
+      daily_kwh_use: 10,
+    },
+    water: {
+      primary_source: "well",
+      storage_gallons: 300,
+      gravity_option: false,
+      filtration_level: "excellent",
+    },
+    food: {
+      garden_sqft: 400,
+      chickens_count: 4,
+      goats_count: 0,
+      root_cellar: false,
+      stored_food_months: 3,
+    },
+    comfort: {
+      heat_type: "propane",
+      cooking_type: "gas",
+      backup_heat: false,
+      backup_cooking: true,
+    },
+    buffers: {
+      fuel_reserve_days: 30,
+      feed_reserve_days: 7,
+      spare_parts_kit: "solid",
+      tools_completeness: 80,
+      resupply_trips_per_month: 2,
+    },
+  },
+];

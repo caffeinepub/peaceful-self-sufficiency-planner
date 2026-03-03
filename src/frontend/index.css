@@ -1,0 +1,229 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Figtree - Body font */
+@font-face {
+  font-family: "Figtree";
+  src: url("/assets/fonts/Figtree.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Fraunces - Display font */
+@font-face {
+  font-family: "Fraunces";
+  src: url("/assets/fonts/Fraunces.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+
+    /* Light mode: warm linen, sage green primary */
+    --background: 0.975 0.008 85;
+    --foreground: 0.22 0.025 60;
+    --card: 0.99 0.005 80;
+    --card-foreground: 0.22 0.025 60;
+    --popover: 0.99 0.005 80;
+    --popover-foreground: 0.22 0.025 60;
+
+    /* Sage green primary */
+    --primary: 0.48 0.085 150;
+    --primary-foreground: 0.99 0.005 80;
+
+    /* Warm secondary */
+    --secondary: 0.93 0.018 80;
+    --secondary-foreground: 0.32 0.03 60;
+
+    /* Muted warm grey */
+    --muted: 0.94 0.012 82;
+    --muted-foreground: 0.52 0.02 75;
+
+    /* Warm amber accent */
+    --accent: 0.88 0.06 75;
+    --accent-foreground: 0.28 0.04 55;
+
+    --destructive: 0.58 0.22 25;
+    --destructive-foreground: 0.99 0.005 80;
+
+    --border: 0.88 0.018 80;
+    --input: 0.88 0.018 80;
+    --ring: 0.48 0.085 150;
+
+    /* Chart colors */
+    --chart-1: 0.54 0.12 148;
+    --chart-2: 0.62 0.1 60;
+    --chart-3: 0.68 0.13 30;
+    --chart-4: 0.58 0.09 210;
+    --chart-5: 0.55 0.15 25;
+
+    /* Score colors */
+    --score-high: 0.54 0.12 148;
+    --score-mid: 0.72 0.14 60;
+    --score-low: 0.6 0.18 25;
+
+    /* Sidebar */
+    --sidebar: 0.96 0.01 80;
+    --sidebar-foreground: 0.22 0.025 60;
+    --sidebar-primary: 0.48 0.085 150;
+    --sidebar-primary-foreground: 0.99 0.005 80;
+    --sidebar-accent: 0.93 0.018 80;
+    --sidebar-accent-foreground: 0.32 0.03 60;
+    --sidebar-border: 0.88 0.018 80;
+    --sidebar-ring: 0.48 0.085 150;
+  }
+
+  .dark {
+    /* Dark mode: deep forest slate */
+    --background: 0.16 0.018 165;
+    --foreground: 0.92 0.012 80;
+    --card: 0.21 0.022 160;
+    --card-foreground: 0.92 0.012 80;
+    --popover: 0.24 0.022 160;
+    --popover-foreground: 0.92 0.012 80;
+
+    /* Sage green primary (lighter for dark) */
+    --primary: 0.62 0.1 148;
+    --primary-foreground: 0.16 0.018 165;
+
+    /* Dark secondary */
+    --secondary: 0.26 0.025 160;
+    --secondary-foreground: 0.88 0.012 80;
+
+    /* Dark muted */
+    --muted: 0.26 0.025 160;
+    --muted-foreground: 0.62 0.02 120;
+
+    /* Warm amber accent (muted) */
+    --accent: 0.32 0.03 155;
+    --accent-foreground: 0.92 0.012 80;
+
+    --destructive: 0.68 0.2 22;
+    --destructive-foreground: 0.16 0.018 165;
+
+    --border: 0.32 0.025 160;
+    --input: 0.32 0.025 160;
+    --ring: 0.62 0.1 148;
+
+    /* Chart colors dark */
+    --chart-1: 0.65 0.14 148;
+    --chart-2: 0.72 0.12 65;
+    --chart-3: 0.7 0.15 30;
+    --chart-4: 0.65 0.1 210;
+    --chart-5: 0.62 0.17 25;
+
+    /* Score colors dark */
+    --score-high: 0.65 0.14 148;
+    --score-mid: 0.75 0.15 65;
+    --score-low: 0.68 0.2 22;
+
+    /* Sidebar */
+    --sidebar: 0.21 0.022 160;
+    --sidebar-foreground: 0.92 0.012 80;
+    --sidebar-primary: 0.62 0.1 148;
+    --sidebar-primary-foreground: 0.16 0.018 165;
+    --sidebar-accent: 0.26 0.025 160;
+    --sidebar-accent-foreground: 0.88 0.012 80;
+    --sidebar-border: 0.32 0.025 160;
+    --sidebar-ring: 0.62 0.1 148;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Figtree", system-ui, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: "Fraunces", serif;
+    font-optical-sizing: auto;
+  }
+}
+
+@layer utilities {
+  .score-ring-transition {
+    transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-hover {
+    transition: box-shadow 200ms ease, transform 200ms ease;
+  }
+
+  .card-hover:hover {
+    box-shadow: 0 8px 30px oklch(0.22 0.025 60 / 0.12);
+    transform: translateY(-1px);
+  }
+
+  .dark .card-hover:hover {
+    box-shadow: 0 8px 30px oklch(0 0 0 / 0.3);
+  }
+
+  .page-enter {
+    animation: pageEnter 0.3s ease-out;
+  }
+
+  @keyframes pageEnter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .score-high {
+    color: oklch(var(--score-high));
+  }
+
+  .score-mid {
+    color: oklch(var(--score-mid));
+  }
+
+  .score-low {
+    color: oklch(var(--score-low));
+  }
+
+  .bg-score-high {
+    background-color: oklch(var(--score-high));
+  }
+
+  .bg-score-mid {
+    background-color: oklch(var(--score-mid));
+  }
+
+  .bg-score-low {
+    background-color: oklch(var(--score-low));
+  }
+
+  .stroke-score-high {
+    stroke: oklch(var(--score-high));
+  }
+
+  .stroke-score-mid {
+    stroke: oklch(var(--score-mid));
+  }
+
+  .stroke-score-low {
+    stroke: oklch(var(--score-low));
+  }
+
+  .fill-score-high-subtle {
+    fill: oklch(var(--score-high) / 0.15);
+  }
+
+  .fill-score-mid-subtle {
+    fill: oklch(var(--score-mid) / 0.15);
+  }
+}
