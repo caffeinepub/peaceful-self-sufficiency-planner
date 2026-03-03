@@ -23,6 +23,7 @@ const PILLAR_LABELS = [
   { key: "food" as const, label: "Food", icon: "🌱" },
   { key: "comfort" as const, label: "Comfort", icon: "🏠" },
   { key: "buffers" as const, label: "Buffers", icon: "🔧" },
+  { key: "land_water" as const, label: "Land & Water", icon: "🌿" },
 ];
 
 const BAR_COLORS = [
@@ -80,6 +81,14 @@ const KEY_INPUTS = [
         loc: import("../types").LocationProfile;
       },
     ) => `${l.loc.buffers.fuel_reserve_days} days`,
+  },
+  {
+    label: "Woods cover",
+    getValue: (
+      l: ReturnType<typeof computeAllScores> & {
+        loc: import("../types").LocationProfile;
+      },
+    ) => `${l.loc.land_water.woods_percent}%`,
   },
 ];
 

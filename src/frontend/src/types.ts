@@ -4,6 +4,47 @@ export type HeatType = "electric" | "propane" | "wood" | "mixed";
 export type CookingType = "electric" | "gas" | "wood" | "mixed";
 export type SparePartsKit = "none" | "basic" | "solid";
 
+export type WaterType =
+  | "none"
+  | "stream"
+  | "creek"
+  | "river"
+  | "lake"
+  | "pond"
+  | "multiple";
+export type WaterSizeClass = "tiny" | "small" | "medium" | "large";
+export type WaterReliability = "seasonal" | "intermittent" | "year_round";
+export type IrrigationAccess = "none" | "limited" | "good" | "excellent";
+export type FishPresent = "unknown" | "none" | "some" | "good";
+export type DucksGeesePresent = "unknown" | "none" | "seasonal" | "frequent";
+export type DeerSign = "unknown" | "none" | "occasional" | "frequent";
+export type OtherGame =
+  | "turkey"
+  | "rabbit"
+  | "squirrel"
+  | "hog"
+  | "bear"
+  | "none"
+  | "unknown";
+export type WellReliability = "unknown" | "low" | "medium" | "high";
+
+export interface LandWaterPillar {
+  has_surface_water: boolean;
+  water_type: WaterType;
+  water_size_class: WaterSizeClass;
+  water_reliability: WaterReliability;
+  access_for_irrigation: IrrigationAccess;
+  fish_present: FishPresent;
+  ducks_geese_present: DucksGeesePresent;
+  woods_percent: number; // 0-100
+  deer_sign: DeerSign;
+  other_game: OtherGame[];
+  has_well: boolean;
+  well_gpm: number;
+  well_depth_ft?: number;
+  well_reliability: WellReliability;
+}
+
 export interface EnergyPillar {
   solar_kw: number;
   battery_kwh: number;
@@ -54,4 +95,5 @@ export interface LocationProfile {
   food: FoodPillar;
   comfort: ComfortPillar;
   buffers: BuffersPillar;
+  land_water: LandWaterPillar;
 }

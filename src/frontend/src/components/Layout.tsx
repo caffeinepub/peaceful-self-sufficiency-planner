@@ -8,6 +8,7 @@ import {
   MapPin,
   Menu,
   Moon,
+  Snowflake,
   Sun,
   X,
 } from "lucide-react";
@@ -18,6 +19,7 @@ const NAV_LINKS = [
   { to: "/", label: "Locations", icon: MapPin },
   { to: "/compare", label: "Compare", icon: BarChart2 },
   { to: "/quiet-week", label: "Quiet Week", icon: Clock },
+  { to: "/winter-lockdown", label: "Winter Mode", icon: Snowflake },
   { to: "/about", label: "About", icon: Info },
 ];
 

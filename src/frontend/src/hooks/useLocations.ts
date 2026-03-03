@@ -1,12 +1,36 @@
 import { useCallback, useEffect, useState } from "react";
 import { SEED_LOCATIONS } from "../seedData";
-import type { LocationProfile } from "../types";
+import type { LandWaterPillar, LocationProfile } from "../types";
 
 const STORAGE_KEY = "pss_locations";
 const THEME_KEY = "pss_theme";
 
+const DEFAULT_LAND_WATER: LandWaterPillar = {
+  has_surface_water: false,
+  water_type: "none",
+  water_size_class: "small",
+  water_reliability: "seasonal",
+  access_for_irrigation: "none",
+  fish_present: "unknown",
+  ducks_geese_present: "unknown",
+  woods_percent: 0,
+  deer_sign: "unknown",
+  other_game: [],
+  has_well: false,
+  well_gpm: 0,
+  well_depth_ft: undefined,
+  well_reliability: "unknown",
+};
+
 function generateId(): string {
   return `loc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function migrateLocation(loc: LocationProfile): LocationProfile {
+  return {
+    ...loc,
+    land_water: loc.land_water ?? DEFAULT_LAND_WATER,
+  };
 }
 
 function loadLocations(): LocationProfile[] {
@@ -16,7 +40,8 @@ function loadLocations(): LocationProfile[] {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_LOCATIONS));
       return SEED_LOCATIONS;
     }
-    return JSON.parse(raw) as LocationProfile[];
+    const parsed = JSON.parse(raw) as LocationProfile[];
+    return parsed.map(migrateLocation);
   } catch {
     return SEED_LOCATIONS;
   }

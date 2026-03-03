@@ -19,23 +19,47 @@ interface Scenario {
 const SCENARIOS: Scenario[] = [
   {
     id: "3-day-outage",
-    label: "3-Day Outage",
+    label: "3 Days",
     days: 3,
     description: "Power goes out — how does your homestead hold up for 3 days?",
   },
   {
     id: "7-day-icy",
-    label: "7-Day Icy Roads",
+    label: "7 Days",
     days: 7,
     description:
       "A week of winter weather keeps you home. Are you comfortable?",
   },
   {
     id: "14-day-delay",
-    label: "14-Day Supply Delay",
+    label: "14 Days",
     days: 14,
     description:
       "Two weeks of supply chain disruption. What's your comfort level?",
+  },
+  {
+    id: "30-day-disruption",
+    label: "30 Days",
+    days: 30,
+    description: "A month-long disruption — how deep are your reserves?",
+  },
+  {
+    id: "90-day-seasonal",
+    label: "90 Days",
+    days: 90,
+    description: "A full season off-grid. How does your homestead hold up?",
+  },
+  {
+    id: "180-day-half-year",
+    label: "180 Days",
+    days: 180,
+    description: "Half a year of self-sufficiency. What are your gaps?",
+  },
+  {
+    id: "360-day-full-year",
+    label: "360 Days",
+    days: 360,
+    description: "A full year on your own. Where do you stand?",
   },
 ];
 
@@ -107,26 +131,29 @@ export function QuietWeekPage() {
   const { locations } = useLocations();
   const [locationId, setLocationId] = useState<string>(locations[0]?.id ?? "");
   const [scenarioId, setScenarioId] = useState<string>(SCENARIOS[0].id);
+  const [people, setPeople] = useState<number>(1);
 
   const loc = locations.find((l) => l.id === locationId);
   const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
+
+  const clampPeople = (n: number) => Math.min(12, Math.max(1, n));
 
   // Compute resource days
   const resources: ResourceStatus[] = loc
     ? [
         {
-          label: "Food supply",
+          label: `Food supply (for ${people} ${people === 1 ? "person" : "people"})`,
           icon: "🌱",
-          days: loc.food.stored_food_months * 30,
+          days: (loc.food.stored_food_months * 30) / people,
           scenarioDays: scenario.days,
-          covered: loc.food.stored_food_months * 30 >= scenario.days,
+          covered: (loc.food.stored_food_months * 30) / people >= scenario.days,
         },
         {
-          label: "Water supply",
+          label: `Water supply (for ${people} ${people === 1 ? "person" : "people"})`,
           icon: "💧",
-          days: loc.water.storage_gallons / 15,
+          days: loc.water.storage_gallons / (15 * people),
           scenarioDays: scenario.days,
-          covered: loc.water.storage_gallons / 15 >= scenario.days,
+          covered: loc.water.storage_gallons / (15 * people) >= scenario.days,
         },
         {
           label: "Energy reserve",
@@ -200,52 +227,101 @@ export function QuietWeekPage() {
         </p>
       </div>
 
-      {/* Selectors */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <label
-            htmlFor="quiet-location-select"
-            className="text-sm font-medium"
+      {/* Location selector */}
+      <div className="space-y-1.5">
+        <label htmlFor="quiet-location-select" className="text-sm font-medium">
+          Location
+        </label>
+        <Select value={locationId} onValueChange={setLocationId}>
+          <SelectTrigger
+            id="quiet-location-select"
+            data-ocid="quiet.location_select"
+            className="max-w-xs"
           >
-            Location
-          </label>
-          <Select value={locationId} onValueChange={setLocationId}>
-            <SelectTrigger
-              id="quiet-location-select"
-              data-ocid="quiet.location_select"
-            >
-              <SelectValue placeholder="Choose a location…" />
-            </SelectTrigger>
-            <SelectContent>
-              {locations.map((l) => (
-                <SelectItem key={l.id} value={l.id}>
-                  {l.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium">Scenario</p>
-          <div className="flex gap-2 flex-wrap" data-ocid="quiet.scenario.tab">
-            {SCENARIOS.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setScenarioId(s.id)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border",
-                  scenarioId === s.id
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent/30",
-                )}
-                data-ocid="quiet.scenario.tab"
-              >
-                {s.label}
-              </button>
+            <SelectValue placeholder="Choose a location…" />
+          </SelectTrigger>
+          <SelectContent>
+            {locations.map((l) => (
+              <SelectItem key={l.id} value={l.id}>
+                {l.name}
+              </SelectItem>
             ))}
-          </div>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Scenario row */}
+      <div className="space-y-1.5">
+        <p className="text-sm font-medium">Scenario</p>
+        <div className="flex gap-1.5 flex-wrap">
+          {SCENARIOS.map((s, idx) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setScenarioId(s.id)}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border",
+                scenarioId === s.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent/30",
+              )}
+              data-ocid={`quiet.scenario.tab.${idx + 1}`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* People stepper */}
+      <div className="bg-card border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-foreground">
+            How many people are you planning for?
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Adjusts water and food estimates only.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => setPeople((p) => clampPeople(p - 1))}
+            disabled={people <= 1}
+            aria-label="Remove one person"
+            className={cn(
+              "w-8 h-8 rounded-lg border flex items-center justify-center text-base font-bold transition-colors",
+              people <= 1
+                ? "border-border text-muted-foreground/40 cursor-not-allowed"
+                : "border-border bg-card text-foreground hover:bg-accent/30",
+            )}
+            data-ocid="quiet.people.decrement_button"
+          >
+            −
+          </button>
+          <span
+            className="w-8 text-center font-semibold text-lg tabular-nums"
+            data-ocid="quiet.people_input"
+            aria-live="polite"
+            aria-label={`${people} ${people === 1 ? "person" : "people"}`}
+          >
+            {people}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPeople((p) => clampPeople(p + 1))}
+            disabled={people >= 12}
+            aria-label="Add one person"
+            className={cn(
+              "w-8 h-8 rounded-lg border flex items-center justify-center text-base font-bold transition-colors",
+              people >= 12
+                ? "border-border text-muted-foreground/40 cursor-not-allowed"
+                : "border-border bg-card text-foreground hover:bg-accent/30",
+            )}
+            data-ocid="quiet.people.increment_button"
+          >
+            +
+          </button>
         </div>
       </div>
 
@@ -267,6 +343,12 @@ export function QuietWeekPage() {
             <p className="text-xs text-muted-foreground/60 mt-1">
               Planning for <strong>{loc.name}</strong> over{" "}
               <strong>{scenario.days} days</strong>
+              {people > 1 && (
+                <>
+                  {" "}
+                  · <strong>{people} people</strong>
+                </>
+              )}
             </p>
           </div>
 
@@ -309,8 +391,9 @@ export function QuietWeekPage() {
                 A note on preparedness:{" "}
               </span>
               These estimates are based on averages. Your actual comfort will
-              also depend on your household size, the season, and your daily
-              rhythms. Use this as a gentle guide, not a strict measure.
+              also depend on the season and your daily rhythms. Water and food
+              figures scale with household size; energy and fuel are per
+              household. Use this as a gentle guide, not a strict measure.
             </p>
           </div>
         </>

@@ -1,80 +1,67 @@
 # Peaceful Self-Sufficiency Planner
 
 ## Current State
-New project. No existing code.
+
+- 6-pillar scoring system: Energy, Water, Food, Comfort, Buffers, Land & Water Ecology
+- Overall weights: Energy 18%, Water 18%, Food 22%, Comfort 17%, Buffers 13%, Land & Water 12%
+- Quiet Week Mode: location + scenario selector (3–360 days) + people stepper + 4 resource cards + comfort level summary
+- Food scoring: stored months up to 55 pts, protein bonus up to 30, cellar 10, garden 15
 
 ## Requested Changes (Diff)
 
 ### Add
-- Full single-page React + TypeScript + Tailwind CSS app
-- All data persisted in localStorage only (no backend, no auth, no external APIs)
-- 4 main screens: Locations List, Location Detail, Compare View, Quiet Week Mode
-- About/Info panel accessible from nav
-- Dark/light theme toggle persisted in localStorage
-- "Peaceful Self-Sufficiency Score" (0–100) per location using 5 weighted pillars
-- Animated score ring, SVG radar chart, bar chart comparisons (using Recharts if available, else SVG)
-- "Explain My Score" expandable panel with human-readable breakdown
-- "Next Best Upgrade" advisor card computing the single highest-gain input change
-- Quiet Week Mode: scenario simulation with calm Comfort Level output
-- Export all / Import JSON for local backup from Locations List
-- Seed data: 2 pre-loaded example Murphy NC locations
+
+- **Winter Lockdown Mode** — new simulation page (route `/winter-lockdown`) accessible from nav alongside Quiet Week
+  - Fixed scenario: 14-day no road access, 5 low-solar days, freezing temps
+  - Controls: location selector + people stepper (same as Quiet Week)
+  - Winter-adjusted scoring engine (separate from standard scoring):
+    - Solar output reduced 40%
+    - Energy usage increased 15%
+    - Battery autonomy weighted heavily: up to 60 pts (days_of_battery / 14 days * 60, clamped)
+    - Wood heat: +20 bonus; electric-only heat: -15 penalty
+    - Gravity-fed water: +15 bonus; no gravity (pump only): -15 penalty
+    - Fuel reserve importance doubled (compare to 28 days instead of 14)
+    - Food stored months weighted up to 70 pts (stored_months / 6 * 70, clamped)
+  - **Winter Score** (0–100) computed from above
+  - **Winter Label**: "Calm Through Winter" (≥70), "Manageable" (≥45), "Strained" (<45)
+  - **Estimated Calm Days**: min(food_days, fuel_days, water_days, energy_days) under winter assumptions, scaled per people
+  - Output section: winter score ring + label + estimated calm days + per-resource breakdown cards (showing winter-adjusted values)
+- **Nav link** for Winter Lockdown Mode (snowflake icon or similar) in Layout
 
 ### Modify
-- N/A (new project)
+
+- **Overall weights** in `scoring.ts` (both `computeOverallScore` and `computeAllScores`):
+  - Energy: 16%
+  - Water: 16%
+  - Food: 30%
+  - Comfort: 16%
+  - Buffers: 12%
+  - Land & Water: 10%
+
+- **Food scoring** in `scoring.ts` (`computeFoodScore`):
+  - `stored_food_months` now up to 60 pts: `(Math.min(stored_food_months, 12) / 12) * 60`
+  - Protein bonus: chickens up to 15, goats up to 15 (unchanged)
+  - Root cellar bonus: +10 (unchanged)
+  - Garden bonus: reduce to 10 pts max (to keep total clamp-friendly): `(Math.min(garden_sqft, 2000) / 2000) * 10`
+  - Total still clamped 0–100
 
 ### Remove
-- N/A (new project)
+
+- Nothing removed
 
 ## Implementation Plan
 
-### Data Model (localStorage)
-- `locations` key stores an array of LocationProfile objects
-- Each LocationProfile: id, name, state, notes, created_at, updated_at + 5 pillar objects
-- Pillar 1 (Energy): solar_kw, battery_kwh, generator, winter_sun_hours, daily_kwh_use
-- Pillar 2 (Water): primary_source, storage_gallons, gravity_option, filtration_level
-- Pillar 3 (Food): garden_sqft, chickens_count, goats_count, root_cellar, stored_food_months
-- Pillar 4 (Comfort): heat_type, cooking_type, backup_heat, backup_cooking
-- Pillar 5 (Buffers): fuel_reserve_days, feed_reserve_days, spare_parts_kit, tools_completeness, resupply_trips_per_month
-- `theme` key: 'light' | 'dark'
-
-### Scoring Engine (pure functions, no side effects)
-- computeEnergyScore(energy): coverage_ratio formula → clamp 0–100
-- computeWaterScore(water): stored_days + bonuses → clamp 0–100
-- computeFoodScore(food): stored_bonus + protein_bonus + cellar + garden → clamp 0–100
-- computeComfortScore(comfort): heat + cooking scores + backups → clamp 0–100
-- computeBuffersScore(buffers): fuel + feed + spare_parts + tools - trips_penalty → clamp 0–100
-- computeOverallScore(pillars): weighted average (20/20/25/20/15)
-
-### Screens & Components
-
-1. **App shell**: top nav with logo, nav links (Locations, Compare, Quiet Week, About), theme toggle
-2. **Locations List** (`/`):
-   - Search bar, "Add Location" button
-   - Grid of location cards showing name, state, score ring, last updated, action buttons (edit, duplicate, delete)
-   - Export all / Import JSON buttons
-3. **Location Detail** (`/location/:id`):
-   - Animated score ring (CSS/SVG animation)
-   - SVG or Recharts radar chart of 5 pillar scores
-   - 5 pillar input cards with all fields, sliders, selects, checkboxes
-   - "Explain My Score" accordion with per-pillar breakdown text
-   - "Next Best Upgrade" card with top suggestion + estimated gain
-4. **Compare View** (`/compare`):
-   - Multi-select up to 4 locations
-   - Bar chart of overall scores
-   - Pillar comparison table (rows = pillars, columns = locations) with color highlighting (best = green, worst = red)
-   - Key input diffs panel
-5. **Quiet Week Mode** (`/quiet-week`):
-   - Location picker + scenario selector (3-day, 7-day, 14-day)
-   - Compute calm days for food, water, energy, fuel
-   - Display Comfort Level: High / Medium / Low with calm, practical language
-6. **About Panel** (modal or route `/about`):
-   - App description, scoring summary, privacy note, export/import instructions
-
-### Upgrade Advisor Logic
-- Defined upgrade set: +3 stored_food_months, +5 battery_kwh, add gravity_option, add root_cellar, reduce resupply_trips by 2, add backup_heat, add backup_cooking, +1 solar_kw
-- For each upgrade, compute new overall score; find the one with max gain
-- Display: upgrade label + "+X points" estimated gain
-
-### Seed Data
-- Pre-load on first run (check if `locations` key is absent in localStorage)
-- Murphy NC - creek and Murphy NC - ridge as specified
+1. **scoring.ts**: Update `computeOverallScore` and `computeAllScores` weights (Energy 0.16, Water 0.16, Food 0.30, Comfort 0.16, Buffers 0.12, Land & Water 0.10)
+2. **scoring.ts**: Update `computeFoodScore` — stored months max 60 pts, garden reduced to 10 pts
+3. **scoring.ts**: Add `computeWinterScore(loc, people)` function that:
+   - Applies winter adjustments to energy/water/food/buffers
+   - Returns `{ winterScore, winterLabel, calmDays, resources }` where resources are winter-adjusted day estimates for food, water, energy, fuel
+4. **App.tsx**: Add `/winter-lockdown` route pointing to new `WinterLockdownPage`
+5. **Layout.tsx**: Add nav link for Winter Lockdown Mode with a snowflake or winter icon
+6. **WinterLockdownPage.tsx**: New page at `src/pages/WinterLockdownPage.tsx`
+   - Location selector + people stepper
+   - Assumption chips (14-day no road, 5 low-solar, freezing, 15% caloric demand, no fuel delivery)
+   - Winter Score ring + label badge
+   - Estimated Calm Days callout
+   - 4 resource cards (food, water, energy, fuel) with winter-adjusted values
+   - Data-ocid markers throughout

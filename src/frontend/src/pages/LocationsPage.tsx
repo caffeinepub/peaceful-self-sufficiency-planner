@@ -91,6 +91,22 @@ const DEFAULT_PROFILE: Omit<
     tools_completeness: 0,
     resupply_trips_per_month: 4,
   },
+  land_water: {
+    has_surface_water: false,
+    water_type: "none",
+    water_size_class: "small",
+    water_reliability: "seasonal",
+    access_for_irrigation: "none",
+    fish_present: "unknown",
+    ducks_geese_present: "unknown",
+    woods_percent: 0,
+    deer_sign: "unknown",
+    other_game: [],
+    has_well: false,
+    well_gpm: 0,
+    well_depth_ft: undefined,
+    well_reliability: "unknown",
+  },
 };
 
 interface AddLocationForm {

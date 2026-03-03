@@ -12,6 +12,7 @@ import { ComparePage } from "./pages/ComparePage";
 import { LocationDetailPage } from "./pages/LocationDetailPage";
 import { LocationsPage } from "./pages/LocationsPage";
 import { QuietWeekPage } from "./pages/QuietWeekPage";
+import { WinterLockdownPage } from "./pages/WinterLockdownPage";
 
 // Root route with layout
 const rootRoute = createRootRoute({
@@ -56,12 +57,19 @@ const aboutRoute = createRoute({
   component: AboutPage,
 });
 
+const winterLockdownRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/winter-lockdown",
+  component: WinterLockdownPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   locationDetailRoute,
   compareRoute,
   quietWeekRoute,
   aboutRoute,
+  winterLockdownRoute,
 ]);
 
 const router = createRouter({ routeTree });

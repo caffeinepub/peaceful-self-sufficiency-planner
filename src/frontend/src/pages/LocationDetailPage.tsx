@@ -4,9 +4,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -14,6 +16,7 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
+  Crosshair,
   Lightbulb,
   MapPin,
   Save,
@@ -26,6 +29,7 @@ import {
   ComfortForm,
   EnergyForm,
   FoodForm,
+  LandWaterForm,
   WaterForm,
 } from "../components/PillarForms";
 import { RadarChart } from "../components/RadarChart";
@@ -35,6 +39,7 @@ import { useLocations } from "../hooks/useLocations";
 import {
   computeAllScores,
   computeNextBestUpgrade,
+  computeTopUpgrades,
   getScoreLabel,
 } from "../scoring";
 import type { LocationProfile } from "../types";
@@ -45,6 +50,7 @@ const PILLAR_ICONS: Record<string, string> = {
   food: "🌱",
   comfort: "🏠",
   buffers: "🔧",
+  land_water: "🌿",
 };
 
 interface ExplainPanelProps {
@@ -53,7 +59,14 @@ interface ExplainPanelProps {
 }
 
 function ExplainPanel({ loc, scores }: ExplainPanelProps) {
-  const { energy: e, water: w, food: f, comfort: c, buffers: b } = loc;
+  const {
+    energy: e,
+    water: w,
+    food: f,
+    comfort: c,
+    buffers: b,
+    land_water: lw,
+  } = loc;
   const coverage =
     (e.solar_kw * e.winter_sun_hours * 0.7 + (e.generator ? 3 : 0)) /
     Math.max(e.daily_kwh_use, 1);
@@ -91,14 +104,20 @@ function ExplainPanel({ loc, scores }: ExplainPanelProps) {
       score: scores.buffers,
       detail: `${b.fuel_reserve_days} days of fuel. ${b.feed_reserve_days} days of animal feed. Spare parts: ${b.spare_parts_kit}. Tools: ${b.tools_completeness}% complete. Resupply: ${b.resupply_trips_per_month} trip${b.resupply_trips_per_month !== 1 ? "s" : ""}/month.`,
     },
+    {
+      icon: "🌿",
+      label: "Land & Water Ecology",
+      score: scores.land_water,
+      detail: `${lw.has_surface_water ? `Surface water: ${lw.water_type} (${lw.water_reliability.replace("_", "-")}). ` : "No surface water on property. "}Irrigation access: ${lw.access_for_irrigation}. ${lw.has_well ? `Well: ${lw.well_gpm} GPM, ${lw.well_reliability} reliability. ` : "No well drilled. "}Woods: ${lw.woods_percent}%. Deer sign: ${lw.deer_sign}.`,
+    },
   ];
 
   return (
     <div className="space-y-4">
       <div className="text-sm text-muted-foreground mb-3">
         Overall: <strong>{Math.round(scores.overall)}/100</strong> — "
-        {getScoreLabel(scores.overall)}". Weights: Energy 20%, Water 20%, Food
-        25%, Comfort 20%, Buffers 15%.
+        {getScoreLabel(scores.overall)}". Weights: Energy 18%, Water 18%, Food
+        22%, Comfort 17%, Buffers 13%, Land &amp; Water 12%.
       </div>
       {items.map((item) => (
         <div
@@ -174,6 +193,12 @@ export function LocationDetailPage() {
   const scores = draft ? computeAllScores(draft) : null;
   const upgrade = draft ? computeNextBestUpgrade(draft) : null;
 
+  const [targetScore, setTargetScore] = useState<number>(() => {
+    if (!source) return 75;
+    const overall = computeAllScores(source).overall;
+    return Math.min(100, Math.round(overall) + 20);
+  });
+
   const handleSave = useCallback(() => {
     if (!draft) return;
     updateLocation(draft.id, {
@@ -185,6 +210,7 @@ export function LocationDetailPage() {
       food: draft.food,
       comfort: draft.comfort,
       buffers: draft.buffers,
+      land_water: draft.land_water,
     });
     toast.success("Changes saved");
   }, [draft, updateLocation]);
@@ -303,6 +329,7 @@ export function LocationDetailPage() {
             food: scores.food,
             comfort: scores.comfort,
             buffers: scores.buffers,
+            land_water: scores.land_water,
           }}
           size={300}
         />
@@ -334,6 +361,96 @@ export function LocationDetailPage() {
           <Lightbulb className="h-4 w-4 text-amber-500 shrink-0 mt-0.5 ml-auto" />
         </div>
       )}
+
+      {/* Target Score */}
+      {(() => {
+        const currentScore = Math.round(scores.overall);
+        const isGoalMet = currentScore >= targetScore;
+        const topUpgrades = !isGoalMet ? computeTopUpgrades(draft, 3) : [];
+        return (
+          <div
+            className="bg-card border border-border rounded-xl p-5 space-y-4"
+            data-ocid="detail.target_score_card"
+          >
+            <div className="flex items-center gap-3">
+              <div className="shrink-0 p-2.5 rounded-full bg-primary/10">
+                <Crosshair className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-display font-semibold text-base leading-tight">
+                  Target Score
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Your score:{" "}
+                  <span className="font-semibold text-foreground">
+                    {currentScore}
+                  </span>{" "}
+                  → Target:{" "}
+                  <span className="font-semibold text-primary">
+                    {targetScore}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <Slider
+                min={1}
+                max={100}
+                step={1}
+                value={[targetScore]}
+                onValueChange={([v]) => setTargetScore(v)}
+                className="flex-1"
+                data-ocid="detail.target_score_slider"
+              />
+              <span className="text-2xl font-bold text-primary w-10 text-right tabular-nums">
+                {targetScore}
+              </span>
+            </div>
+
+            {isGoalMet ? (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-sm font-medium">
+                <span>🎯</span>
+                <span>You've reached your target! Set a higher goal.</span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                  Top actions to reach {targetScore} points
+                </p>
+                {topUpgrades.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">
+                    No upgrades available — you're at maximum potential with
+                    these parameters.
+                  </p>
+                ) : (
+                  <ol className="space-y-2">
+                    {topUpgrades.map((upg, idx) => (
+                      <li
+                        key={upg.label}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-accent/20 border border-border"
+                      >
+                        <span className="shrink-0 w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center">
+                          {idx + 1}
+                        </span>
+                        <span className="flex-1 text-sm font-medium">
+                          {upg.label}
+                        </span>
+                        <Badge
+                          variant="secondary"
+                          className="shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 font-semibold text-xs"
+                        >
+                          +{upg.gain.toFixed(1)} pts
+                        </Badge>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Pillar Cards */}
       <div className="space-y-4">
@@ -400,6 +517,20 @@ export function LocationDetailPage() {
             <BuffersForm
               value={draft.buffers}
               onChange={(v) => update("buffers", v)}
+            />
+          </div>
+        </PillarCard>
+
+        <PillarCard
+          icon={PILLAR_ICONS.land_water}
+          title="Land & Water Ecology"
+          score={scores.land_water}
+          dataOcid="detail.land_water_card"
+        >
+          <div className="pt-3">
+            <LandWaterForm
+              value={draft.land_water}
+              onChange={(v) => update("land_water", v)}
             />
           </div>
         </PillarCard>

@@ -5,6 +5,7 @@ interface RadarChartProps {
     food: number;
     comfort: number;
     buffers: number;
+    land_water: number;
   };
   size?: number;
 }
@@ -15,12 +16,13 @@ const PILLARS = [
   { key: "food" as const, label: "Food", icon: "🌱" },
   { key: "comfort" as const, label: "Comfort", icon: "🏠" },
   { key: "buffers" as const, label: "Buffers", icon: "🔧" },
+  { key: "land_water" as const, label: "Land & Water", icon: "🌿" },
 ];
 
 export function RadarChart({ scores, size = 280 }: RadarChartProps) {
   const center = size / 2;
   const maxRadius = size * 0.35;
-  const labelRadius = size * 0.46;
+  const labelRadius = size * 0.5;
   const numAxes = PILLARS.length;
 
   // Angles: start at top (-90°), go clockwise
@@ -77,7 +79,7 @@ export function RadarChart({ scores, size = 280 }: RadarChartProps) {
     <svg
       width={size}
       height={size}
-      viewBox={`0 0 ${size} ${size}`}
+      viewBox={`-35 -30 ${size + 70} ${size + 60}`}
       className="block"
       role="img"
       aria-label="Radar chart showing pillar scores"
