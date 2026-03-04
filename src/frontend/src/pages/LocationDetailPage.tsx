@@ -29,12 +29,14 @@ import {
   ComfortForm,
   EnergyForm,
   FoodForm,
+  HeatingFuelForm,
   LandWaterForm,
   WaterForm,
 } from "../components/PillarForms";
 import { RadarChart } from "../components/RadarChart";
 import { ScoreBadge } from "../components/ScoreBadge";
 import { ScoreRing } from "../components/ScoreRing";
+import { DEFAULT_HEATING_FUEL } from "../hooks/useLocations";
 import { useLocations } from "../hooks/useLocations";
 import {
   computeAllScores,
@@ -211,6 +213,7 @@ export function LocationDetailPage() {
       comfort: draft.comfort,
       buffers: draft.buffers,
       land_water: draft.land_water,
+      heating_fuel: draft.heating_fuel,
     });
     toast.success("Changes saved");
   }, [draft, updateLocation]);
@@ -534,6 +537,30 @@ export function LocationDetailPage() {
             />
           </div>
         </PillarCard>
+
+        {/* Heating Fuel & House Context — not scored but used in Winter Mode */}
+        <div
+          className="bg-card border border-border rounded-xl overflow-hidden shadow-xs"
+          data-ocid="detail.heating_fuel_card"
+        >
+          <div className="w-full flex items-center gap-3 p-4 bg-accent/10 border-b border-border">
+            <span className="text-xl">🔥</span>
+            <div>
+              <span className="font-display font-semibold text-base">
+                Heating Fuel &amp; House Context
+              </span>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Used in Winter Mode to estimate firewood and propane coverage.
+              </p>
+            </div>
+          </div>
+          <div className="p-4 pt-3">
+            <HeatingFuelForm
+              value={draft.heating_fuel ?? DEFAULT_HEATING_FUEL}
+              onChange={(v) => update("heating_fuel", v)}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Explain My Score */}

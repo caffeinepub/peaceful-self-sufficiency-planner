@@ -83,6 +83,24 @@ export interface BuffersPillar {
   resupply_trips_per_month: number;
 }
 
+export type PropaneTankPreset = 100 | 250 | 500 | 1000 | "custom";
+export type InsulationLevel = "poor" | "average" | "good" | "excellent";
+export type HeatingPriority = "whole_house" | "living_area" | "survival_heat";
+
+export interface HeatingFuelData {
+  firewood_cords: number;
+  propane_tank_preset: PropaneTankPreset;
+  propane_custom_gallons: number;
+  propane_fill_percent: number; // 0-100
+  heated_sqft: number;
+  insulation_level: InsulationLevel;
+  heating_priority: HeatingPriority;
+  propane_uses_heating: boolean;
+  propane_uses_cooking: boolean;
+  propane_uses_water_heater: boolean;
+  propane_uses_generator: boolean;
+}
+
 export interface LocationProfile {
   id: string;
   name: string;
@@ -96,4 +114,5 @@ export interface LocationProfile {
   comfort: ComfortPillar;
   buffers: BuffersPillar;
   land_water: LandWaterPillar;
+  heating_fuel: HeatingFuelData;
 }

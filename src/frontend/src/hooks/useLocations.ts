@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { SEED_LOCATIONS } from "../seedData";
-import type { LandWaterPillar, LocationProfile } from "../types";
+import type {
+  HeatingFuelData,
+  LandWaterPillar,
+  LocationProfile,
+} from "../types";
 
 const STORAGE_KEY = "pss_locations";
 const THEME_KEY = "pss_theme";
@@ -22,6 +26,20 @@ const DEFAULT_LAND_WATER: LandWaterPillar = {
   well_reliability: "unknown",
 };
 
+export const DEFAULT_HEATING_FUEL: HeatingFuelData = {
+  firewood_cords: 2,
+  propane_tank_preset: 100,
+  propane_custom_gallons: 0,
+  propane_fill_percent: 50,
+  heated_sqft: 1200,
+  insulation_level: "average",
+  heating_priority: "whole_house",
+  propane_uses_heating: false,
+  propane_uses_cooking: true,
+  propane_uses_water_heater: false,
+  propane_uses_generator: false,
+};
+
 function generateId(): string {
   return `loc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -30,6 +48,7 @@ function migrateLocation(loc: LocationProfile): LocationProfile {
   return {
     ...loc,
     land_water: loc.land_water ?? DEFAULT_LAND_WATER,
+    heating_fuel: loc.heating_fuel ?? DEFAULT_HEATING_FUEL,
   };
 }
 

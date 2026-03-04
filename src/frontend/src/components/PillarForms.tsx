@@ -10,14 +10,19 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { useState } from "react";
 import type {
   BuffersPillar,
   ComfortPillar,
   EnergyPillar,
   FoodPillar,
+  HeatingFuelData,
+  HeatingPriority,
+  InsulationLevel,
   LandWaterPillar,
   OtherGame,
+  PropaneTankPreset,
   WaterPillar,
 } from "../types";
 
@@ -975,6 +980,347 @@ export function LandWaterForm({ value, onChange }: LandWaterFormProps) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Heating Fuel & House Context ───────────────────────────────────────────────
+
+interface HeatingFuelFormProps {
+  value: HeatingFuelData;
+  onChange: (v: HeatingFuelData) => void;
+}
+
+const PROPANE_PRESETS: { value: PropaneTankPreset; label: string }[] = [
+  { value: 100, label: "100 gal" },
+  { value: 250, label: "250 gal" },
+  { value: 500, label: "500 gal" },
+  { value: 1000, label: "1000 gal" },
+  { value: "custom", label: "Custom" },
+];
+
+const INSULATION_OPTIONS: {
+  value: InsulationLevel;
+  label: string;
+  hint: string;
+}[] = [
+  { value: "poor", label: "Poor", hint: "Drafty, minimal insulation" },
+  { value: "average", label: "Average", hint: "Standard older construction" },
+  { value: "good", label: "Good", hint: "Well-insulated walls & attic" },
+  { value: "excellent", label: "Excellent", hint: "Modern tight construction" },
+];
+
+const PRIORITY_OPTIONS: {
+  value: HeatingPriority;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "whole_house",
+    label: "Whole House",
+    hint: "Keep the entire home comfortable",
+  },
+  {
+    value: "living_area",
+    label: "Main Living Area",
+    hint: "Heat only the central living space",
+  },
+  {
+    value: "survival_heat",
+    label: "Survival Heat",
+    hint: "Minimum warmth to prevent freezing",
+  },
+];
+
+export function HeatingFuelForm({ value, onChange }: HeatingFuelFormProps) {
+  const update = (patch: Partial<HeatingFuelData>) =>
+    onChange({ ...value, ...patch });
+
+  return (
+    <div className="space-y-6">
+      {/* ── Firewood ── */}
+      <div>
+        <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+          <span>🪵</span> Firewood
+        </p>
+        <div className="flex items-center gap-3 max-w-xs">
+          <label
+            htmlFor="hf-firewood-cords"
+            className="text-sm text-muted-foreground whitespace-nowrap"
+          >
+            Cords on hand
+          </label>
+          <input
+            id="hf-firewood-cords"
+            type="number"
+            min={0}
+            step={0.5}
+            value={value.firewood_cords}
+            onChange={(e) =>
+              update({
+                firewood_cords: Number.parseFloat(e.target.value) || 0,
+              })
+            }
+            className="w-24 rounded-md border border-input bg-background px-3 py-1.5 text-sm
+              text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            data-ocid="detail.fuel.firewood_input"
+          />
+          <span className="text-sm text-muted-foreground">cords</span>
+        </div>
+      </div>
+
+      {/* ── Propane ── */}
+      <div>
+        <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+          <span>🛢️</span> Propane
+        </p>
+        <div className="space-y-4">
+          {/* Tank size */}
+          <div className="flex flex-wrap items-center gap-3">
+            <label
+              htmlFor="hf-propane-tank-select"
+              className="text-sm text-muted-foreground whitespace-nowrap"
+            >
+              Tank size
+            </label>
+            <Select
+              value={String(value.propane_tank_preset)}
+              onValueChange={(v) => {
+                const preset =
+                  v === "custom"
+                    ? "custom"
+                    : (Number.parseInt(v) as 100 | 250 | 500 | 1000);
+                update({ propane_tank_preset: preset });
+              }}
+            >
+              <SelectTrigger
+                id="hf-propane-tank-select"
+                className="w-32"
+                data-ocid="detail.fuel.propane_tank_select"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROPANE_PRESETS.map((p) => (
+                  <SelectItem key={String(p.value)} value={String(p.value)}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {value.propane_tank_preset === "custom" && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={value.propane_custom_gallons}
+                  onChange={(e) =>
+                    update({
+                      propane_custom_gallons:
+                        Number.parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  className="w-24 rounded-md border border-input bg-background px-3 py-1.5 text-sm
+                    text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  data-ocid="detail.fuel.propane_custom_input"
+                  placeholder="gallons"
+                />
+                <span className="text-sm text-muted-foreground">gal</span>
+              </div>
+            )}
+          </div>
+
+          {/* Fill level slider */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="hf-propane-fill-slider"
+                className="text-sm text-muted-foreground"
+              >
+                Current fill level
+              </label>
+              <span className="text-sm font-semibold text-foreground tabular-nums">
+                {value.propane_fill_percent}%
+              </span>
+            </div>
+            <Slider
+              id="hf-propane-fill-slider"
+              min={0}
+              max={100}
+              step={5}
+              value={[value.propane_fill_percent]}
+              onValueChange={([v]) => update({ propane_fill_percent: v })}
+              className="max-w-sm"
+              data-ocid="detail.fuel.propane_fill_slider"
+              aria-label="Propane fill level"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground max-w-sm">
+              <span>0% (empty)</span>
+              <span>100% (full)</span>
+            </div>
+          </div>
+
+          {/* Propane uses */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              What do you use propane for?
+            </p>
+            <div className="grid grid-cols-2 gap-2 max-w-sm">
+              {(
+                [
+                  {
+                    key: "propane_uses_heating" as const,
+                    label: "Heating",
+                    ocid: "detail.fuel.use_heating",
+                  },
+                  {
+                    key: "propane_uses_cooking" as const,
+                    label: "Cooking",
+                    ocid: "detail.fuel.use_cooking",
+                  },
+                  {
+                    key: "propane_uses_water_heater" as const,
+                    label: "Water Heater",
+                    ocid: "detail.fuel.use_water_heater",
+                  },
+                  {
+                    key: "propane_uses_generator" as const,
+                    label: "Generator",
+                    ocid: "detail.fuel.use_generator",
+                  },
+                ] as const
+              ).map(({ key, label, ocid }) => (
+                <label
+                  key={key}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm transition-colors",
+                    value[key]
+                      ? "bg-primary/10 border-primary/30 text-foreground"
+                      : "bg-background border-border text-muted-foreground hover:bg-accent/20",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={value[key]}
+                    onChange={(e) => update({ [key]: e.target.checked })}
+                    className="h-3.5 w-3.5 accent-primary"
+                    data-ocid={ocid}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── House context ── */}
+      <div>
+        <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+          <span>🏠</span> House Context
+        </p>
+        <div className="space-y-5">
+          {/* Heated sqft */}
+          <div className="flex items-center gap-3 max-w-xs">
+            <label
+              htmlFor="hf-heated-sqft"
+              className="text-sm text-muted-foreground whitespace-nowrap"
+            >
+              Heated sq ft
+            </label>
+            <input
+              id="hf-heated-sqft"
+              type="number"
+              min={200}
+              step={100}
+              value={value.heated_sqft}
+              onChange={(e) =>
+                update({
+                  heated_sqft: Number.parseInt(e.target.value) || 200,
+                })
+              }
+              className="w-28 rounded-md border border-input bg-background px-3 py-1.5 text-sm
+                text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              data-ocid="detail.fuel.heated_sqft_input"
+            />
+            <span className="text-sm text-muted-foreground">sq ft</span>
+          </div>
+
+          {/* Insulation level */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              Insulation level
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {INSULATION_OPTIONS.map(({ value: v, label, hint }) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => update({ insulation_level: v })}
+                  title={hint}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors",
+                    value.insulation_level === v
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background border-border text-muted-foreground hover:bg-accent/20",
+                  )}
+                  data-ocid={`detail.fuel.insulation_${v}`}
+                  aria-pressed={value.insulation_level === v}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              {
+                INSULATION_OPTIONS.find(
+                  (o) => o.value === value.insulation_level,
+                )?.hint
+              }
+            </p>
+          </div>
+
+          {/* Heating priority */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              Heating priority during outage
+            </p>
+            <div className="space-y-2 max-w-sm">
+              {PRIORITY_OPTIONS.map(({ value: v, label, hint }) => (
+                <label
+                  key={v}
+                  className={cn(
+                    "flex items-start gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors",
+                    value.heating_priority === v
+                      ? "bg-primary/10 border-primary/30"
+                      : "bg-background border-border hover:bg-accent/20",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="hf-heating-priority"
+                    value={v}
+                    checked={value.heating_priority === v}
+                    onChange={() => update({ heating_priority: v })}
+                    className="mt-0.5 accent-primary"
+                    data-ocid={`detail.fuel.priority_${v === "whole_house" ? "whole_house" : v === "living_area" ? "living_area" : "survival"}`}
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-foreground block">
+                      {label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {hint}
+                    </span>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

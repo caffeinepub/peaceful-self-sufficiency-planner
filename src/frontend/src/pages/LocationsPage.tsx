@@ -107,6 +107,19 @@ const DEFAULT_PROFILE: Omit<
     well_depth_ft: undefined,
     well_reliability: "unknown",
   },
+  heating_fuel: {
+    firewood_cords: 2,
+    propane_tank_preset: 100,
+    propane_custom_gallons: 0,
+    propane_fill_percent: 50,
+    heated_sqft: 1200,
+    insulation_level: "average",
+    heating_priority: "whole_house",
+    propane_uses_heating: false,
+    propane_uses_cooking: true,
+    propane_uses_water_heater: false,
+    propane_uses_generator: false,
+  },
 };
 
 interface AddLocationForm {

@@ -79,7 +79,7 @@ export function RadarChart({ scores, size = 280 }: RadarChartProps) {
     <svg
       width={size}
       height={size}
-      viewBox={`-35 -30 ${size + 70} ${size + 60}`}
+      viewBox={`-65 -30 ${size + 130} ${size + 60}`}
       className="block"
       role="img"
       aria-label="Radar chart showing pillar scores"

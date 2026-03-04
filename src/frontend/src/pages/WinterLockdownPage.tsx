@@ -7,16 +7,70 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { useLocations } from "../hooks/useLocations";
+import { DEFAULT_HEATING_FUEL, useLocations } from "../hooks/useLocations";
 import { type WinterResource, computeWinterResult } from "../scoring";
+import type { HeatingFuelData, InsulationLevel } from "../types";
 
-const WINTER_ASSUMPTIONS = [
-  { icon: "🚫", label: "14-day no road access" },
-  { icon: "☁️", label: "5 low-solar days" },
-  { icon: "🔥", label: "+15% caloric demand" },
-  { icon: "⛽", label: "No fuel delivery" },
-  { icon: "🧊", label: "Freezing temperatures" },
-];
+type ScenarioDuration = 7 | 14 | 30;
+
+const insulationMult: Record<InsulationLevel, number> = {
+  poor: 1.35,
+  average: 1.0,
+  good: 0.8,
+  excellent: 0.65,
+};
+
+function computeWoodEstimates(
+  fuel: HeatingFuelData,
+  duration: ScenarioDuration,
+) {
+  const baseWoodMonthly =
+    fuel.heating_priority === "whole_house"
+      ? fuel.heated_sqft / 1200
+      : fuel.heating_priority === "living_area"
+        ? 0.6
+        : 0.3;
+  const cordsNeeded =
+    baseWoodMonthly * insulationMult[fuel.insulation_level] * (duration / 30);
+  const woodPct =
+    cordsNeeded > 0 ? (fuel.firewood_cords / cordsNeeded) * 100 : 200;
+  return { cordsNeeded, woodPct };
+}
+
+function computePropaneEstimates(
+  fuel: HeatingFuelData,
+  duration: ScenarioDuration,
+) {
+  const tankGallons =
+    fuel.propane_tank_preset === "custom"
+      ? fuel.propane_custom_gallons
+      : fuel.propane_tank_preset;
+  const usablePropaneGallons = tankGallons * (fuel.propane_fill_percent / 100);
+
+  const heatingDailyGal = fuel.propane_uses_heating
+    ? (fuel.heated_sqft / 1200) * insulationMult[fuel.insulation_level]
+    : 0;
+  const cookingDailyGal = fuel.propane_uses_cooking ? 0.15 : 0;
+  const waterHeaterDailyGal = fuel.propane_uses_water_heater ? 0.25 : 0;
+  const generatorDailyGal = fuel.propane_uses_generator ? 0.5 : 0;
+  const totalDailyPropane =
+    heatingDailyGal + cookingDailyGal + waterHeaterDailyGal + generatorDailyGal;
+  const propaneNeeded = totalDailyPropane * duration;
+  const propanePct =
+    propaneNeeded > 0 ? (usablePropaneGallons / propaneNeeded) * 100 : 200;
+
+  return { usablePropaneGallons, propaneNeeded, propanePct };
+}
+
+function fuelGaugeLabel(pct: number): "Covered" | "Tight" | "Short" {
+  if (pct > 120) return "Covered";
+  if (pct >= 80) return "Tight";
+  return "Short";
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
 
 function WinterScoreRing({ score }: { score: number }) {
   const radius = 52;
@@ -122,7 +176,7 @@ function WinterResourceCard({
           <span className="font-medium text-sm">{resource.label}</span>
         </div>
         <span className={cn("text-xs font-semibold", statusColor)}>
-          {covered ? "✓ Covered" : "✗ At risk"}
+          {covered ? "✓ Covered" : "✗ Needs attention"}
         </span>
       </div>
 
@@ -151,22 +205,149 @@ function WinterResourceCard({
   );
 }
 
+interface FuelGaugeProps {
+  label: string;
+  icon: string;
+  available: number;
+  needed: number;
+  unit: string;
+  pct: number;
+  ocid: string;
+}
+
+function FuelGauge({
+  label,
+  icon,
+  available,
+  needed,
+  unit,
+  pct,
+  ocid,
+}: FuelGaugeProps) {
+  const status = fuelGaugeLabel(pct);
+  const clampedPct = Math.min(pct, 200);
+  const barWidthPct = Math.min(clampedPct / 2, 100); // scale 0–200% → 0–100% bar
+
+  const statusStyles =
+    status === "Covered"
+      ? {
+          badge:
+            "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30",
+          bar: "bg-teal-500 dark:bg-teal-400",
+        }
+      : status === "Tight"
+        ? {
+            badge:
+              "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+            bar: "bg-amber-500 dark:bg-amber-400",
+          }
+        : {
+            badge:
+              "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30",
+            bar: "bg-red-500 dark:bg-red-400",
+          };
+
+  const statusIcon =
+    status === "Covered" ? "✓" : status === "Tight" ? "~" : "✗";
+
+  return (
+    <div
+      className="bg-card border border-border rounded-xl p-4 space-y-3"
+      data-ocid={ocid}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">{icon}</span>
+          <span className="font-medium text-sm">{label}</span>
+        </div>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border",
+            statusStyles.badge,
+          )}
+        >
+          {statusIcon} {status}
+        </span>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>
+            {available.toFixed(1)} {unit} on hand
+          </span>
+          <span>
+            {needed > 0
+              ? `${needed.toFixed(1)} ${unit} needed`
+              : "No usage selected"}
+          </span>
+        </div>
+        <div className="h-2.5 rounded-full bg-accent/40 overflow-hidden">
+          <div
+            className={cn(
+              "h-full rounded-full transition-all duration-700",
+              statusStyles.bar,
+            )}
+            style={{ width: `${barWidthPct}%` }}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground/70 text-right tabular-nums">
+          {needed > 0 ? `${Math.round(clampedPct)}% of need covered` : "—"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
+function buildWinterAssumptions(duration: ScenarioDuration) {
+  const lowSolarDays = Math.min(5, Math.ceil(duration * 0.35));
+  const energyIncrease = duration <= 7 ? 10 : 15;
+  const caloricIncrease = duration <= 7 ? 10 : 15;
+
+  return [
+    { icon: "🚫", label: `${duration}-day no road access` },
+    { icon: "☁️", label: `${lowSolarDays} low-solar days` },
+    { icon: "🔥", label: `+${caloricIncrease}% caloric demand` },
+    { icon: "⛽", label: "No fuel delivery" },
+    { icon: "🧊", label: "Freezing temperatures" },
+    { icon: "💡", label: `+${energyIncrease}% energy use` },
+  ];
+}
+
 export function WinterLockdownPage() {
   const { locations } = useLocations();
   const [locationId, setLocationId] = useState<string>(locations[0]?.id ?? "");
   const [people, setPeople] = useState<number>(1);
+  const [scenarioDuration, setScenarioDuration] =
+    useState<ScenarioDuration>(14);
 
   const loc = locations.find((l) => l.id === locationId);
   const clampPeople = (n: number) => Math.min(12, Math.max(1, n));
+
+  const heatingFuel: HeatingFuelData =
+    loc?.heating_fuel ?? DEFAULT_HEATING_FUEL;
 
   const result = loc ? computeWinterResult(loc, people) : null;
 
   const labelExplanation =
     result?.winterLabel === "Calm Through Winter"
-      ? "Your homestead is well-equipped to weather a 14-day winter lockdown with confidence."
+      ? "Your homestead is well-equipped to weather this winter access delay with confidence."
       : result?.winterLabel === "Manageable"
         ? "You can get through, but some resources will be stretched. Focus on your weakest buffer."
         : "This winter scenario would be tough on your current setup. Prioritize food, fuel, and battery storage.";
+
+  // Fuel estimates
+  const { cordsNeeded, woodPct } = computeWoodEstimates(
+    heatingFuel,
+    scenarioDuration,
+  );
+  const { usablePropaneGallons, propaneNeeded, propanePct } =
+    computePropaneEstimates(heatingFuel, scenarioDuration);
+
+  const winterAssumptions = buildWinterAssumptions(scenarioDuration);
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
@@ -175,18 +356,44 @@ export function WinterLockdownPage() {
         <div className="flex items-center gap-2 mb-1">
           <span className="text-2xl">❄️</span>
           <h1 className="font-display text-2xl sm:text-3xl font-semibold text-foreground">
-            Winter Lockdown Mode
+            Winter Access Delay
           </h1>
         </div>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Simulate 14 days of no road access with freezing temperatures, reduced
-          solar, and increased household demands.
+          Simulate a winter period with no road access, freezing temperatures,
+          reduced solar, and increased household demands.
         </p>
+      </div>
+
+      {/* Scenario duration selector */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-sm font-medium text-muted-foreground">
+          Scenario duration:
+        </span>
+        <div className="flex gap-1 bg-accent/30 rounded-lg p-1">
+          {([7, 14, 30] as const).map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setScenarioDuration(d)}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                scenarioDuration === d
+                  ? "bg-card shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              data-ocid={`winter.duration.${d}`}
+              aria-pressed={scenarioDuration === d}
+            >
+              {d} days
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Winter assumption chips */}
       <div className="flex flex-wrap gap-2">
-        {WINTER_ASSUMPTIONS.map((a) => (
+        {winterAssumptions.map((a) => (
           <span
             key={a.label}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
@@ -228,8 +435,8 @@ export function WinterLockdownPage() {
             How many people are you planning for?
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Scales food and water estimates. Caloric demand also increases +15%
-            per person in winter.
+            Scales food and water estimates. Caloric demand also increases in
+            winter.
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -310,7 +517,11 @@ export function WinterLockdownPage() {
             data-ocid="winter.calm_days_panel"
           >
             <div className="text-4xl shrink-0" aria-hidden="true">
-              {result.calmDays >= 14 ? "🌨️" : result.calmDays >= 7 ? "🌥️" : "⛈️"}
+              {result.calmDays >= scenarioDuration
+                ? "🌨️"
+                : result.calmDays >= scenarioDuration / 2
+                  ? "🌥️"
+                  : "⛈️"}
             </div>
             <div>
               <div className="text-sm text-muted-foreground font-medium uppercase tracking-wide">
@@ -324,18 +535,19 @@ export function WinterLockdownPage() {
               </div>
               <p className="text-sm text-muted-foreground mt-1">
                 Based on your lowest buffer across food, water, energy, and
-                fuel. A 14-day lockdown requires all four to stay covered.
+                fuel. A {scenarioDuration}-day access delay requires all four to
+                stay covered.
               </p>
-              {/* Bottleneck call-out */}
+              {/* Limiting factor call-out */}
               {(() => {
-                const bottleneck = result.resources.reduce((min, r) =>
+                const limitingFactor = result.resources.reduce((min, r) =>
                   r.days < min.days ? r : min,
                 );
                 return (
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 font-medium">
-                    Bottleneck: {bottleneck.icon}{" "}
-                    {bottleneck.label.split("(")[0].trim()} (
-                    {bottleneck.days.toFixed(1)} days)
+                    Limiting factor: {limitingFactor.icon}{" "}
+                    {limitingFactor.label.split("(")[0].trim()} (
+                    {limitingFactor.days.toFixed(1)} days)
                   </p>
                 );
               })()}
@@ -351,6 +563,37 @@ export function WinterLockdownPage() {
               {result.resources.map((r, i) => (
                 <WinterResourceCard key={r.label} resource={r} index={i + 1} />
               ))}
+            </div>
+          </div>
+
+          {/* Fuel Coverage Estimates */}
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">
+              Fuel Coverage Estimates
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Based on heating fuel &amp; house context entered in the Location
+              edit page.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FuelGauge
+                label="Firewood Coverage"
+                icon="🪵"
+                available={heatingFuel.firewood_cords}
+                needed={cordsNeeded}
+                unit="cords"
+                pct={woodPct}
+                ocid="winter.fuel.wood_gauge"
+              />
+              <FuelGauge
+                label="Propane Coverage"
+                icon="🛢️"
+                available={usablePropaneGallons}
+                needed={propaneNeeded}
+                unit="gal"
+                pct={propanePct}
+                ocid="winter.fuel.propane_gauge"
+              />
             </div>
           </div>
 
@@ -392,10 +635,12 @@ export function WinterLockdownPage() {
               </li>
             </ul>
             <p className="text-xs text-muted-foreground/70 border-t border-blue-900/20 pt-3">
-              Winter simulation assumes 14 days no road access, 5 low-solar days
-              (solar reduced 40%), 15% increased energy use, 15% increased
-              caloric demand, and no fuel delivery. Use as a planning guide, not
-              a guarantee.
+              Winter simulation assumes {scenarioDuration} days no road access,{" "}
+              {Math.min(5, Math.ceil(scenarioDuration * 0.35))} low-solar days
+              (solar reduced 40%), {scenarioDuration <= 7 ? 10 : 15}% increased
+              energy use, {scenarioDuration <= 7 ? 10 : 15}% increased caloric
+              demand, and no fuel delivery. Use as a planning guide, not a
+              guarantee.
             </p>
           </div>
         </>
