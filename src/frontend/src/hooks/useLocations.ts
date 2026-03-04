@@ -34,10 +34,13 @@ export const DEFAULT_HEATING_FUEL: HeatingFuelData = {
   heated_sqft: 1200,
   insulation_level: "average",
   heating_priority: "whole_house",
+  firewood_role: "primary",
   propane_uses_heating: false,
   propane_uses_cooking: true,
   propane_uses_water_heater: false,
   propane_uses_generator: false,
+  winterTempBand: "cool",
+  snowDisruption: "occasional",
 };
 
 function generateId(): string {
@@ -45,10 +48,30 @@ function generateId(): string {
 }
 
 function migrateLocation(loc: LocationProfile): LocationProfile {
+  const hf = loc.heating_fuel ?? DEFAULT_HEATING_FUEL;
+  // Migrate legacy buffers (strip tools_completeness if present)
+  const legacyBuffers = loc.buffers as LocationProfile["buffers"] & {
+    tools_completeness?: number;
+  };
+  const buffers: LocationProfile["buffers"] = {
+    fuel_reserve_days: legacyBuffers.fuel_reserve_days ?? 0,
+    feed_reserve_days: legacyBuffers.feed_reserve_days ?? 0,
+    spare_parts_kit: legacyBuffers.spare_parts_kit ?? "none",
+    resupply_trips_per_month: legacyBuffers.resupply_trips_per_month ?? 4,
+  };
+
   return {
     ...loc,
+    buffers,
     land_water: loc.land_water ?? DEFAULT_LAND_WATER,
-    heating_fuel: loc.heating_fuel ?? DEFAULT_HEATING_FUEL,
+    heating_fuel: {
+      ...DEFAULT_HEATING_FUEL,
+      ...hf,
+      firewood_role: hf.firewood_role ?? "primary",
+      // Migrate top-level winterTempBand/snowDisruption into heating_fuel
+      winterTempBand: hf.winterTempBand ?? loc.winterTempBand ?? "cool",
+      snowDisruption: hf.snowDisruption ?? loc.snowDisruption ?? "occasional",
+    },
   };
 }
 

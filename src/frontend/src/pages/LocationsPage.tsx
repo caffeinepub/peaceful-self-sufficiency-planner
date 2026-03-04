@@ -88,7 +88,6 @@ const DEFAULT_PROFILE: Omit<
     fuel_reserve_days: 0,
     feed_reserve_days: 0,
     spare_parts_kit: "none",
-    tools_completeness: 0,
     resupply_trips_per_month: 4,
   },
   land_water: {
@@ -115,6 +114,7 @@ const DEFAULT_PROFILE: Omit<
     heated_sqft: 1200,
     insulation_level: "average",
     heating_priority: "whole_house",
+    firewood_role: "primary" as const,
     propane_uses_heating: false,
     propane_uses_cooking: true,
     propane_uses_water_heater: false,

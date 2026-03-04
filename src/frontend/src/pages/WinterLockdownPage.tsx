@@ -9,7 +9,56 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { DEFAULT_HEATING_FUEL, useLocations } from "../hooks/useLocations";
 import { type WinterResource, computeWinterResult } from "../scoring";
-import type { HeatingFuelData, InsulationLevel } from "../types";
+import type {
+  HeatingFuelData,
+  InsulationLevel,
+  SnowDisruption,
+  WinterTempBand,
+} from "../types";
+
+const WINTER_TEMP_OPTIONS: {
+  value: WinterTempBand;
+  label: string;
+  mult: number;
+}[] = [
+  { value: "mild", label: "Mild (35–45°F)", mult: 0.8 },
+  { value: "cool", label: "Cool (25–35°F)", mult: 1.0 },
+  { value: "cold", label: "Cold (15–25°F)", mult: 1.2 },
+  { value: "very_cold", label: "Very cold (<15°F)", mult: 1.4 },
+];
+
+const SNOW_OPTIONS: { value: SnowDisruption; label: string }[] = [
+  { value: "rare", label: "Rare" },
+  { value: "occasional", label: "Occasional" },
+  { value: "regular", label: "Regular" },
+  { value: "heavy", label: "Heavy" },
+];
+
+const WINTER_TEMP_MULT: Record<WinterTempBand, number> = {
+  mild: 0.8,
+  cool: 1.0,
+  cold: 1.2,
+  very_cold: 1.4,
+};
+
+function getTempMult(band: WinterTempBand): number {
+  return WINTER_TEMP_MULT[band];
+}
+
+function accessNote(snow: SnowDisruption, days: number): string {
+  const mult =
+    snow === "heavy"
+      ? 1.3
+      : snow === "regular"
+        ? 1.15
+        : snow === "rare"
+          ? 0.9
+          : 1.0;
+  const effective = days * mult;
+  if (effective <= 7) return "Access likely manageable with basic prep.";
+  if (effective <= 14) return "Plan for delays and fewer resupply options.";
+  return "Deep reserves recommended during extended winter disruption.";
+}
 
 type ScenarioDuration = 7 | 14 | 30;
 
@@ -23,6 +72,7 @@ const insulationMult: Record<InsulationLevel, number> = {
 function computeWoodEstimates(
   fuel: HeatingFuelData,
   duration: ScenarioDuration,
+  tempMult: number,
 ) {
   const baseWoodMonthly =
     fuel.heating_priority === "whole_house"
@@ -30,16 +80,31 @@ function computeWoodEstimates(
       : fuel.heating_priority === "living_area"
         ? 0.6
         : 0.3;
+
+  const role = fuel.firewood_role ?? "primary";
+  const woodShare =
+    role === "primary"
+      ? 1.0
+      : role === "secondary"
+        ? (fuel.wood_share ?? 0.4)
+        : 0.15;
+
   const cordsNeeded =
-    baseWoodMonthly * insulationMult[fuel.insulation_level] * (duration / 30);
+    baseWoodMonthly *
+    insulationMult[fuel.insulation_level] *
+    (duration / 30) *
+    tempMult *
+    woodShare;
   const woodPct =
     cordsNeeded > 0 ? (fuel.firewood_cords / cordsNeeded) * 100 : 200;
-  return { cordsNeeded, woodPct };
+  return { cordsNeeded, woodPct, woodShare };
 }
 
 function computePropaneEstimates(
   fuel: HeatingFuelData,
   duration: ScenarioDuration,
+  tempMult: number,
+  woodShare: number,
 ) {
   const tankGallons =
     fuel.propane_tank_preset === "custom"
@@ -47,9 +112,11 @@ function computePropaneEstimates(
       : fuel.propane_tank_preset;
   const usablePropaneGallons = tankGallons * (fuel.propane_fill_percent / 100);
 
-  const heatingDailyGal = fuel.propane_uses_heating
-    ? (fuel.heated_sqft / 1200) * insulationMult[fuel.insulation_level]
-    : 0;
+  // Propane only covers the heating share NOT handled by wood
+  const propaneHeatShare = fuel.propane_uses_heating ? 1 - woodShare : 0;
+  const baseHeatingDailyGal =
+    (fuel.heated_sqft / 1200) * insulationMult[fuel.insulation_level];
+  const heatingDailyGal = baseHeatingDailyGal * tempMult * propaneHeatShare;
   const cookingDailyGal = fuel.propane_uses_cooking ? 0.15 : 0;
   const waterHeaterDailyGal = fuel.propane_uses_water_heater ? 0.25 : 0;
   const generatorDailyGal = fuel.propane_uses_generator ? 0.5 : 0;
@@ -327,6 +394,14 @@ export function WinterLockdownPage() {
   const loc = locations.find((l) => l.id === locationId);
   const clampPeople = (n: number) => Math.min(12, Math.max(1, n));
 
+  // Winter condition overrides — default from location's heating_fuel, but override-able per simulation
+  const [tempBand, setTempBand] = useState<WinterTempBand>(
+    loc?.heating_fuel?.winterTempBand ?? loc?.winterTempBand ?? "cool",
+  );
+  const [snowDisruption, setSnowDisruption] = useState<SnowDisruption>(
+    loc?.heating_fuel?.snowDisruption ?? loc?.snowDisruption ?? "occasional",
+  );
+
   const heatingFuel: HeatingFuelData =
     loc?.heating_fuel ?? DEFAULT_HEATING_FUEL;
 
@@ -339,13 +414,17 @@ export function WinterLockdownPage() {
         ? "You can get through, but some resources will be stretched. Focus on your weakest buffer."
         : "This winter scenario would be tough on your current setup. Prioritize food, fuel, and battery storage.";
 
+  const tempMult = getTempMult(tempBand);
+  const snowNote = accessNote(snowDisruption, scenarioDuration);
+
   // Fuel estimates
-  const { cordsNeeded, woodPct } = computeWoodEstimates(
+  const { cordsNeeded, woodPct, woodShare } = computeWoodEstimates(
     heatingFuel,
     scenarioDuration,
+    tempMult,
   );
   const { usablePropaneGallons, propaneNeeded, propanePct } =
-    computePropaneEstimates(heatingFuel, scenarioDuration);
+    computePropaneEstimates(heatingFuel, scenarioDuration, tempMult, woodShare);
 
   const winterAssumptions = buildWinterAssumptions(scenarioDuration);
 
@@ -426,6 +505,67 @@ export function WinterLockdownPage() {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Winter Conditions */}
+      <div className="bg-card border border-border rounded-xl p-4 space-y-4">
+        <p className="text-sm font-medium text-foreground">Winter Conditions</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label
+              htmlFor="winter-temp-band"
+              className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
+            >
+              Temperature band
+            </label>
+            <Select
+              value={tempBand}
+              onValueChange={(v) => setTempBand(v as WinterTempBand)}
+            >
+              <SelectTrigger
+                id="winter-temp-band"
+                data-ocid="winter.temp_band.select"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WINTER_TEMP_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label
+              htmlFor="winter-snow"
+              className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
+            >
+              Snow / road disruption
+            </label>
+            <Select
+              value={snowDisruption}
+              onValueChange={(v) => setSnowDisruption(v as SnowDisruption)}
+            >
+              <SelectTrigger
+                id="winter-snow"
+                data-ocid="winter.snow_disruption.select"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SNOW_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground italic">{snowNote}</p>
       </div>
 
       {/* People stepper */}

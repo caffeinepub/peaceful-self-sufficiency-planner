@@ -79,13 +79,15 @@ export interface BuffersPillar {
   fuel_reserve_days: number;
   feed_reserve_days: number;
   spare_parts_kit: SparePartsKit;
-  tools_completeness: number; // 0–100
   resupply_trips_per_month: number;
 }
 
 export type PropaneTankPreset = 100 | 250 | 500 | 1000 | "custom";
 export type InsulationLevel = "poor" | "average" | "good" | "excellent";
 export type HeatingPriority = "whole_house" | "living_area" | "survival_heat";
+export type FirewoodRole = "primary" | "secondary" | "occasional";
+export type WinterTempBand = "mild" | "cool" | "cold" | "very_cold";
+export type SnowDisruption = "rare" | "occasional" | "regular" | "heavy";
 
 export interface HeatingFuelData {
   firewood_cords: number;
@@ -95,10 +97,14 @@ export interface HeatingFuelData {
   heated_sqft: number;
   insulation_level: InsulationLevel;
   heating_priority: HeatingPriority;
+  firewood_role: FirewoodRole;
+  wood_share?: number; // used when firewood_role is "secondary"
   propane_uses_heating: boolean;
   propane_uses_cooking: boolean;
   propane_uses_water_heater: boolean;
   propane_uses_generator: boolean;
+  winterTempBand?: WinterTempBand;
+  snowDisruption?: SnowDisruption;
 }
 
 export interface LocationProfile {
@@ -115,4 +121,6 @@ export interface LocationProfile {
   buffers: BuffersPillar;
   land_water: LandWaterPillar;
   heating_fuel: HeatingFuelData;
+  winterTempBand?: WinterTempBand;
+  snowDisruption?: SnowDisruption;
 }

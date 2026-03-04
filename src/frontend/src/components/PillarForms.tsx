@@ -16,6 +16,7 @@ import type {
   BuffersPillar,
   ComfortPillar,
   EnergyPillar,
+  FirewoodRole,
   FoodPillar,
   HeatingFuelData,
   HeatingPriority,
@@ -23,7 +24,9 @@ import type {
   LandWaterPillar,
   OtherGame,
   PropaneTankPreset,
+  SnowDisruption,
   WaterPillar,
+  WinterTempBand,
 } from "../types";
 
 // ── Energy Pillar ──────────────────────────────────────────────────────────────
@@ -62,7 +65,7 @@ export function EnergyForm({ value, onChange }: EnergyFormProps) {
             if (v) {
               onChange({ ...value, solar_kw: solarKwDraft });
             } else {
-              onChange({ ...value, solar_kw: 0 });
+              onChange({ ...value, solar_kw: 0, battery_kwh: 0 });
             }
           }}
           data-ocid="energy.solar_toggle"
@@ -513,20 +516,6 @@ export function BuffersForm({ value, onChange }: BuffersFormProps) {
         />
         <p className="text-xs text-muted-foreground">
           Fewer trips = more self-sufficient
-        </p>
-      </div>
-
-      <div className="space-y-3 col-span-full">
-        <Label>Tools Completeness: {value.tools_completeness}%</Label>
-        <Slider
-          min={0}
-          max={100}
-          step={5}
-          value={[value.tools_completeness]}
-          onValueChange={([v]) => set("tools_completeness", v)}
-        />
-        <p className="text-xs text-muted-foreground">
-          How complete is your tool collection for self-sufficient living?
         </p>
       </div>
     </div>
@@ -992,6 +981,41 @@ interface HeatingFuelFormProps {
   onChange: (v: HeatingFuelData) => void;
 }
 
+const WINTER_TEMP_OPTIONS: {
+  value: WinterTempBand;
+  label: string;
+}[] = [
+  { value: "mild", label: "Mild (35–45°F)" },
+  { value: "cool", label: "Cool (25–35°F)" },
+  { value: "cold", label: "Cold (15–25°F)" },
+  { value: "very_cold", label: "Very cold (<15°F)" },
+];
+
+const SNOW_OPTIONS: { value: SnowDisruption; label: string }[] = [
+  { value: "rare", label: "Rare" },
+  { value: "occasional", label: "Occasional" },
+  { value: "regular", label: "Regular" },
+  { value: "heavy", label: "Heavy" },
+];
+
+const FIREWOOD_ROLE_OPTIONS: {
+  value: FirewoodRole;
+  label: string;
+  hint: string;
+}[] = [
+  { value: "primary", label: "Primary heat", hint: "Wood is the main source" },
+  {
+    value: "secondary",
+    label: "Secondary",
+    hint: "Wood supplements another source",
+  },
+  {
+    value: "occasional",
+    label: "Occasional",
+    hint: "Rarely used for heat",
+  },
+];
+
 const PROPANE_PRESETS: { value: PropaneTankPreset; label: string }[] = [
   { value: 100, label: "100 gal" },
   { value: 250, label: "250 gal" },
@@ -1044,29 +1068,97 @@ export function HeatingFuelForm({ value, onChange }: HeatingFuelFormProps) {
         <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
           <span>🪵</span> Firewood
         </p>
-        <div className="flex items-center gap-3 max-w-xs">
-          <label
-            htmlFor="hf-firewood-cords"
-            className="text-sm text-muted-foreground whitespace-nowrap"
-          >
-            Cords on hand
-          </label>
-          <input
-            id="hf-firewood-cords"
-            type="number"
-            min={0}
-            step={0.5}
-            value={value.firewood_cords}
-            onChange={(e) =>
-              update({
-                firewood_cords: Number.parseFloat(e.target.value) || 0,
-              })
-            }
-            className="w-24 rounded-md border border-input bg-background px-3 py-1.5 text-sm
-              text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            data-ocid="detail.fuel.firewood_input"
-          />
-          <span className="text-sm text-muted-foreground">cords</span>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 max-w-xs">
+            <label
+              htmlFor="hf-firewood-cords"
+              className="text-sm text-muted-foreground whitespace-nowrap"
+            >
+              Cords on hand
+            </label>
+            <input
+              id="hf-firewood-cords"
+              type="number"
+              min={0}
+              step={0.5}
+              value={value.firewood_cords}
+              onChange={(e) =>
+                update({
+                  firewood_cords: Number.parseFloat(e.target.value) || 0,
+                })
+              }
+              className="w-24 rounded-md border border-input bg-background px-3 py-1.5 text-sm
+                text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              data-ocid="detail.fuel.firewood_input"
+            />
+            <span className="text-sm text-muted-foreground">cords</span>
+          </div>
+
+          {/* Firewood role */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              Role of firewood in your heating plan
+            </p>
+            <div className="space-y-2 max-w-sm">
+              {FIREWOOD_ROLE_OPTIONS.map(({ value: v, label, hint }) => (
+                <label
+                  key={v}
+                  className={cn(
+                    "flex items-start gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors",
+                    (value.firewood_role ?? "primary") === v
+                      ? "bg-primary/10 border-primary/30"
+                      : "bg-background border-border hover:bg-accent/20",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="hf-firewood-role"
+                    value={v}
+                    checked={(value.firewood_role ?? "primary") === v}
+                    onChange={() => update({ firewood_role: v })}
+                    className="mt-0.5 accent-primary"
+                    data-ocid={`detail.fuel.firewood_role_${v}`}
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-foreground block">
+                      {label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {hint}
+                    </span>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Wood share slider — shown when secondary */}
+          {(value.firewood_role ?? "primary") === "secondary" && (
+            <div className="space-y-2 max-w-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Wood heating share
+                </span>
+                <span className="text-sm font-semibold text-foreground tabular-nums">
+                  {Math.round((value.wood_share ?? 0.4) * 100)}%
+                </span>
+              </div>
+              <Slider
+                min={10}
+                max={90}
+                step={5}
+                value={[(value.wood_share ?? 0.4) * 100]}
+                onValueChange={([v]) => update({ wood_share: v / 100 })}
+                className="max-w-sm"
+                data-ocid="detail.fuel.wood_share_slider"
+                aria-label="Wood heating share"
+              />
+              <p className="text-xs text-muted-foreground">
+                Percent of your heating load covered by firewood; the rest is
+                covered by propane (if enabled below).
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1322,6 +1414,356 @@ export function HeatingFuelForm({ value, onChange }: HeatingFuelFormProps) {
           </div>
         </div>
       </div>
+
+      {/* ── Winter Conditions ── */}
+      <div>
+        <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+          <span>❄️</span> Winter Conditions
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label
+              htmlFor="hf-temp-band"
+              className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
+            >
+              Temperature band
+            </label>
+            <Select
+              value={value.winterTempBand ?? "cool"}
+              onValueChange={(v) =>
+                update({ winterTempBand: v as WinterTempBand })
+              }
+            >
+              <SelectTrigger
+                id="hf-temp-band"
+                data-ocid="detail.fuel.temp_band.select"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WINTER_TEMP_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label
+              htmlFor="hf-snow"
+              className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
+            >
+              Snow / road disruption
+            </label>
+            <Select
+              value={value.snowDisruption ?? "occasional"}
+              onValueChange={(v) =>
+                update({ snowDisruption: v as SnowDisruption })
+              }
+            >
+              <SelectTrigger
+                id="hf-snow"
+                data-ocid="detail.fuel.snow_disruption.select"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SNOW_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Heating Coverage Advisory ── */}
+      <HeatingCoverageCard fuel={value} />
+    </div>
+  );
+}
+
+// ── Heating Coverage Advisory Card ────────────────────────────────────────────
+
+const TEMP_FACTOR: Record<WinterTempBand, number> = {
+  mild: 0.8,
+  cool: 1.0,
+  cold: 1.2,
+  very_cold: 1.4,
+};
+
+const INSULATION_FACTOR: Record<InsulationLevel, number> = {
+  poor: 1.35,
+  average: 1.0,
+  good: 0.8,
+  excellent: 0.65,
+};
+
+const PRIORITY_FACTOR: Record<HeatingPriority, number> = {
+  whole_house: 1.0,
+  living_area: 0.6,
+  survival_heat: 0.35,
+};
+
+const ROLE_MULTIPLIER: Record<FirewoodRole, number> = {
+  primary: 1.0,
+  secondary: 0.5,
+  occasional: 0.2,
+};
+
+function computeHeatingCoverage(fuel: HeatingFuelData) {
+  const tempFactor = TEMP_FACTOR[fuel.winterTempBand ?? "cool"];
+  const insulationFactor = INSULATION_FACTOR[fuel.insulation_level];
+  const priorityFactor = PRIORITY_FACTOR[fuel.heating_priority];
+  const demandFactor = priorityFactor * insulationFactor * tempFactor;
+
+  const role = fuel.firewood_role ?? "primary";
+  const roleMultiplier = ROLE_MULTIPLIER[role];
+  const woodDays =
+    demandFactor > 0
+      ? ((fuel.firewood_cords * 7) / demandFactor) * roleMultiplier
+      : 0;
+
+  const tankSize =
+    fuel.propane_tank_preset === "custom"
+      ? fuel.propane_custom_gallons
+      : fuel.propane_tank_preset;
+  const usableGallons = tankSize * (fuel.propane_fill_percent / 100);
+
+  // Use 30 days as planning horizon for "other" drain
+  const plannedDays = 30;
+  const otherGallonsPerDay =
+    (fuel.propane_uses_cooking ? 0.2 : 0) +
+    (fuel.propane_uses_water_heater ? 0.5 : 0) +
+    (fuel.propane_uses_generator ? 0.8 : 0);
+  const propaneHeatGallonsPerDay = fuel.propane_uses_heating
+    ? 2.0 * demandFactor
+    : 0;
+  const usableForHeat = Math.max(
+    usableGallons - otherGallonsPerDay * plannedDays,
+    0,
+  );
+  const propaneHeatDays =
+    fuel.propane_uses_heating && propaneHeatGallonsPerDay > 0
+      ? usableForHeat / propaneHeatGallonsPerDay
+      : 0;
+
+  let totalDays: number;
+  if (role === "primary") {
+    totalDays = woodDays + propaneHeatDays;
+  } else if (role === "secondary") {
+    totalDays = propaneHeatDays + woodDays;
+  } else {
+    // occasional
+    totalDays = propaneHeatDays + woodDays * 0.3;
+  }
+
+  // Primary limiter
+  let limiter: "Firewood" | "Propane" | "Both";
+  if (propaneHeatDays === 0 && woodDays === 0) {
+    limiter = "Both";
+  } else if (propaneHeatDays === 0) {
+    limiter = "Firewood";
+  } else if (woodDays === 0) {
+    limiter = "Propane";
+  } else {
+    const ratio = woodDays / Math.max(propaneHeatDays, 0.001);
+    limiter = ratio < 0.7 ? "Firewood" : ratio > 1.43 ? "Propane" : "Both";
+  }
+
+  return { woodDays, propaneHeatDays, totalDays, demandFactor, limiter };
+}
+
+function computeBestImprovement(fuel: HeatingFuelData): {
+  label: string;
+  addedDays: number;
+} {
+  const base = computeHeatingCoverage(fuel);
+
+  const candidates: { label: string; addedDays: number }[] = [];
+
+  // +1 cord
+  const withCord = computeHeatingCoverage({
+    ...fuel,
+    firewood_cords: fuel.firewood_cords + 1,
+  });
+  candidates.push({
+    label: "Add 1 cord of firewood",
+    addedDays: withCord.totalDays - base.totalDays,
+  });
+
+  // +25% fill
+  const newFill = Math.min(100, fuel.propane_fill_percent + 25);
+  if (newFill > fuel.propane_fill_percent) {
+    const withFill = computeHeatingCoverage({
+      ...fuel,
+      propane_fill_percent: newFill,
+    });
+    candidates.push({
+      label: "Fill propane +25%",
+      addedDays: withFill.totalDays - base.totalDays,
+    });
+  }
+
+  // Reduce heating priority one step
+  const priorityOrder: HeatingPriority[] = [
+    "whole_house",
+    "living_area",
+    "survival_heat",
+  ];
+  const pIdx = priorityOrder.indexOf(fuel.heating_priority);
+  if (pIdx < priorityOrder.length - 1) {
+    const nextPriority = priorityOrder[pIdx + 1];
+    const priorityLabels: Record<HeatingPriority, string> = {
+      whole_house: "Switch to Main Living Area heat only",
+      living_area: "Switch to Survival Heat mode",
+      survival_heat: "Switch to Survival Heat mode",
+    };
+    const withPriority = computeHeatingCoverage({
+      ...fuel,
+      heating_priority: nextPriority,
+    });
+    candidates.push({
+      label: priorityLabels[fuel.heating_priority],
+      addedDays: withPriority.totalDays - base.totalDays,
+    });
+  }
+
+  // Improve insulation one step
+  const insulationOrder: InsulationLevel[] = [
+    "poor",
+    "average",
+    "good",
+    "excellent",
+  ];
+  const iIdx = insulationOrder.indexOf(fuel.insulation_level);
+  if (iIdx < insulationOrder.length - 1) {
+    const nextInsulation = insulationOrder[iIdx + 1];
+    const insulationLabels: Record<InsulationLevel, string> = {
+      poor: "Improve insulation to Average",
+      average: "Improve insulation to Good",
+      good: "Improve insulation to Excellent",
+      excellent: "Improve insulation to Excellent",
+    };
+    const withInsulation = computeHeatingCoverage({
+      ...fuel,
+      insulation_level: nextInsulation,
+    });
+    candidates.push({
+      label: insulationLabels[fuel.insulation_level],
+      addedDays: withInsulation.totalDays - base.totalDays,
+    });
+  }
+
+  candidates.sort((a, b) => b.addedDays - a.addedDays);
+  return candidates[0] ?? { label: "All options maximized", addedDays: 0 };
+}
+
+function HeatingCoverageCard({ fuel }: { fuel: HeatingFuelData }) {
+  const { woodDays, propaneHeatDays, totalDays, limiter } =
+    computeHeatingCoverage(fuel);
+  const best = computeBestImprovement(fuel);
+
+  const totalRounded = Math.round(totalDays);
+  const woodRounded = Math.round(woodDays);
+  const propaneRounded = Math.round(propaneHeatDays);
+
+  const limiterColor =
+    limiter === "Firewood"
+      ? "text-amber-600 dark:text-amber-400"
+      : limiter === "Propane"
+        ? "text-blue-600 dark:text-blue-400"
+        : "text-orange-600 dark:text-orange-400";
+
+  const totalColor =
+    totalRounded >= 30
+      ? "text-emerald-600 dark:text-emerald-400"
+      : totalRounded >= 14
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-red-600 dark:text-red-400";
+
+  return (
+    <div
+      className="rounded-xl border border-border bg-accent/10 p-4 space-y-4"
+      data-ocid="detail.heating_coverage_card"
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-base">🌡️</span>
+        <p className="text-sm font-semibold text-foreground">
+          Heating Coverage (estimated)
+        </p>
+      </div>
+
+      {/* Total days */}
+      <div className="flex items-end gap-2">
+        <span
+          className={cn(
+            "font-display text-4xl font-bold tabular-nums leading-none",
+            totalColor,
+          )}
+        >
+          {totalRounded}
+        </span>
+        <span className="text-sm text-muted-foreground mb-1">
+          heat days available
+        </span>
+      </div>
+
+      {/* Breakdown */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-background rounded-lg border border-border px-3 py-2">
+          <p className="text-xs text-muted-foreground mb-0.5">🪵 Firewood</p>
+          <p className="text-lg font-bold tabular-nums text-foreground">
+            {woodRounded}{" "}
+            <span className="text-xs font-normal text-muted-foreground">
+              days
+            </span>
+          </p>
+        </div>
+        <div className="bg-background rounded-lg border border-border px-3 py-2">
+          <p className="text-xs text-muted-foreground mb-0.5">🛢️ Propane</p>
+          <p className="text-lg font-bold tabular-nums text-foreground">
+            {propaneRounded}{" "}
+            <span className="text-xs font-normal text-muted-foreground">
+              days
+            </span>
+          </p>
+        </div>
+      </div>
+
+      {/* Primary limiter */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">Primary limiter:</span>
+        <span className={cn("text-xs font-semibold", limiterColor)}>
+          {limiter}
+        </span>
+      </div>
+
+      {/* Best improvement */}
+      {best.addedDays > 0.5 && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/8 border border-primary/20">
+          <span className="text-base shrink-0">💡</span>
+          <div>
+            <p className="text-xs font-semibold text-foreground">
+              Biggest improvement
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {best.label} →{" "}
+              <span className="font-semibold text-primary">
+                +{Math.round(best.addedDays)} days
+              </span>
+            </p>
+          </div>
+        </div>
+      )}
+
+      <p className="text-xs text-muted-foreground/70 italic">
+        Estimates vary by stove efficiency, wind, and thermostat habits.
+      </p>
     </div>
   );
 }

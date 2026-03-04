@@ -104,7 +104,7 @@ function ExplainPanel({ loc, scores }: ExplainPanelProps) {
       icon: "🔧",
       label: "Buffers",
       score: scores.buffers,
-      detail: `${b.fuel_reserve_days} days of fuel. ${b.feed_reserve_days} days of animal feed. Spare parts: ${b.spare_parts_kit}. Tools: ${b.tools_completeness}% complete. Resupply: ${b.resupply_trips_per_month} trip${b.resupply_trips_per_month !== 1 ? "s" : ""}/month.`,
+      detail: `${b.fuel_reserve_days} days of fuel. ${b.feed_reserve_days} days of animal feed. Spare parts: ${b.spare_parts_kit}. Resupply: ${b.resupply_trips_per_month} trip${b.resupply_trips_per_month !== 1 ? "s" : ""}/month.`,
     },
     {
       icon: "🌿",

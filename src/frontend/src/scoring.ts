@@ -103,16 +103,14 @@ export function computeComfortScore(c: ComfortPillar): number {
 }
 
 export function computeBuffersScore(b: BuffersPillar): number {
-  const fuel_score = (Math.min(b.fuel_reserve_days, 30) / 30) * 30;
-  const feed_score = (Math.min(b.feed_reserve_days, 30) / 30) * 20;
-  const spare_parts: Record<string, number> = { none: 0, basic: 10, solid: 18 };
-  const tools_score = (b.tools_completeness / 100) * 22;
+  const fuel_score = (Math.min(b.fuel_reserve_days, 30) / 30) * 40;
+  const feed_score = (Math.min(b.feed_reserve_days, 30) / 30) * 25;
+  const spare_parts: Record<string, number> = { none: 0, basic: 15, solid: 25 };
   const trips_penalty = (Math.min(b.resupply_trips_per_month, 12) / 12) * 20;
   return clamp(
     fuel_score +
       feed_score +
       spare_parts[b.spare_parts_kit] +
-      tools_score +
       (20 - trips_penalty),
     0,
     100,
