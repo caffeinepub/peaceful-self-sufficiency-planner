@@ -19,9 +19,11 @@ import type {
   EnergyPillar,
   FirewoodRole,
   FoodPillar,
+  FruitTreeCount,
   HeatingFuelData,
   HeatingPriority,
   InsulationLevel,
+  LandProductivityData,
   LandWaterPillar,
   OtherGame,
   PropaneTankPreset,
@@ -1943,6 +1945,364 @@ function HeatingCoverageCard({ fuel }: { fuel: HeatingFuelData }) {
       <p className="text-xs text-muted-foreground/70 italic">
         Estimates vary by stove efficiency, wind, and thermostat habits.
       </p>
+    </div>
+  );
+}
+
+// ── Land Productivity (Advisory) ───────────────────────────────────────────────
+
+interface LandProductivityFormProps {
+  gardenSqft: number;
+  landWater: LandWaterPillar;
+  value: LandProductivityData;
+  onChange: (v: LandProductivityData) => void;
+}
+
+const FRUIT_TREE_OPTIONS: {
+  value: FruitTreeCount;
+  label: string;
+  production: string;
+}[] = [
+  { value: "none", label: "None", production: "No fruit tree production" },
+  {
+    value: "1-5",
+    label: "1–5 trees",
+    production: "~50–250 lbs of fruit per year",
+  },
+  {
+    value: "6-15",
+    label: "6–15 trees",
+    production: "~300–900 lbs of fruit per year",
+  },
+  {
+    value: "15+",
+    label: "15+ trees",
+    production: "~1,000+ lbs of fruit per year",
+  },
+];
+
+function computeWildProtein(lw: LandWaterPillar): {
+  label: "Low" | "Moderate" | "High";
+  score: number;
+} {
+  let score = 0;
+  if (lw.deer_sign === "frequent") score += 3;
+  else if (lw.deer_sign === "occasional") score += 1;
+  if (lw.fish_present === "good") score += 3;
+  else if (lw.fish_present === "some") score += 1;
+  if (lw.ducks_geese_present === "frequent") score += 2;
+  else if (lw.ducks_geese_present === "seasonal") score += 1;
+  const gameBonus = lw.other_game.filter(
+    (g) => g !== "none" && g !== "unknown",
+  ).length;
+  score += gameBonus;
+  const label = score >= 5 ? "High" : score >= 2 ? "Moderate" : "Low";
+  return { label, score };
+}
+
+export function LandProductivityForm({
+  gardenSqft,
+  landWater,
+  value,
+  onChange,
+}: LandProductivityFormProps) {
+  const set = <K extends keyof LandProductivityData>(
+    key: K,
+    val: LandProductivityData[K],
+  ) => onChange({ ...value, [key]: val });
+
+  const peopleSupported = Math.round(gardenSqft / 200);
+  const fruitOption =
+    FRUIT_TREE_OPTIONS.find((o) => o.value === value.fruit_trees) ??
+    FRUIT_TREE_OPTIONS[0];
+  const woodedAcres = value.wooded_acres ?? 0;
+  const lowCords = (woodedAcres * 0.5).toFixed(1);
+  const highCords = (woodedAcres * 1.0).toFixed(1);
+  const pastureAcres = value.pasture_acres ?? 0;
+  const goatCapacity = Math.max(0, Math.floor(pastureAcres / 1.5));
+  const cowCapacity = Math.max(0, Math.floor(pastureAcres / 2.5));
+  const wildProtein = computeWildProtein(landWater);
+
+  const irrigationStrength =
+    landWater.has_surface_water &&
+    (landWater.access_for_irrigation === "good" ||
+      landWater.access_for_irrigation === "excellent")
+      ? "strong"
+      : landWater.has_surface_water &&
+          landWater.access_for_irrigation === "limited"
+        ? "limited"
+        : "none";
+
+  const wildProteinColor =
+    wildProtein.label === "High"
+      ? "text-green-700 dark:text-green-400"
+      : wildProtein.label === "Moderate"
+        ? "text-green-600 dark:text-green-500"
+        : "text-amber-600 dark:text-amber-400";
+
+  return (
+    <div className="space-y-6">
+      {/* ── Garden Production ── */}
+      <div
+        className="space-y-2 p-3 rounded-lg bg-accent/20 border border-border"
+        data-ocid="land_productivity.garden.section"
+      >
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          🥦 Garden Production
+        </p>
+        {gardenSqft > 0 ? (
+          <p className="text-sm">
+            Your {gardenSqft.toLocaleString()} sq ft garden could support
+            approximately{" "}
+            <span className="font-semibold text-foreground">
+              {peopleSupported} person{peopleSupported !== 1 ? "s" : ""}
+            </span>{" "}
+            seasonally.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No garden area entered. Add garden square footage in the Food
+            section above.
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Based on ~200 sq ft per person seasonally.
+        </p>
+      </div>
+
+      {/* ── Orchard / Fruit Trees ── */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          🍎 Orchard / Fruit Trees
+        </p>
+        <div className="space-y-1.5">
+          <Label>Approximate number of fruit trees</Label>
+          <Select
+            value={value.fruit_trees}
+            onValueChange={(v) => set("fruit_trees", v as FruitTreeCount)}
+          >
+            <SelectTrigger data-ocid="land_productivity.fruit_trees.select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FRUIT_TREE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {value.fruit_trees !== "none" && (
+          <p className="text-sm font-medium text-foreground">
+            {fruitOption.production}
+          </p>
+        )}
+        {value.fruit_trees === "none" && (
+          <p className="text-sm text-muted-foreground">
+            {fruitOption.production}
+          </p>
+        )}
+      </div>
+
+      {/* ── Woodland Resources ── */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          🪵 Woodland Resources
+        </p>
+        <div className="space-y-1.5">
+          <Label>Wooded acres available for harvest</Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.5}
+            value={woodedAcres || ""}
+            placeholder="0"
+            onChange={(e) =>
+              set("wooded_acres", Number.parseFloat(e.target.value) || 0)
+            }
+            data-ocid="land_productivity.wooded_acres.input"
+          />
+          <p className="text-xs text-muted-foreground">
+            Based on ~0.5–1 cord per acre per year for healthy woodland.
+          </p>
+        </div>
+        {woodedAcres > 0 && (
+          <p className="text-sm font-medium text-foreground">
+            Estimated sustainable harvest:{" "}
+            <span className="font-semibold">
+              {lowCords}–{highCords} cords per year
+            </span>
+          </p>
+        )}
+      </div>
+
+      {/* ── Wildlife Protein Potential ── */}
+      <div
+        className="space-y-2 p-3 rounded-lg bg-accent/20 border border-border"
+        data-ocid="land_productivity.wildlife_protein.section"
+      >
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          🦌 Wildlife Protein Potential
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Derived from your wildlife observations in the Land &amp; Water
+          Ecology section.
+        </p>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            Estimated potential:
+          </span>
+          <span className={cn("font-semibold text-sm", wildProteinColor)}>
+            {wildProtein.label}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Grazing Potential ── */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          🐄 Grazing Potential
+        </p>
+        <div className="space-y-1.5">
+          <Label>Pasture or open land acreage</Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.5}
+            value={pastureAcres || ""}
+            placeholder="0"
+            onChange={(e) =>
+              set("pasture_acres", Number.parseFloat(e.target.value) || 0)
+            }
+            data-ocid="land_productivity.pasture_acres.input"
+          />
+          <p className="text-xs text-muted-foreground">
+            Based on 1–2 acres per goat, 2–3 acres per cow.
+          </p>
+        </div>
+        {pastureAcres > 0 && (
+          <p className="text-sm font-medium text-foreground">
+            Estimated capacity: ~
+            <span className="font-semibold">
+              {goatCapacity} goat{goatCapacity !== 1 ? "s" : ""}
+            </span>{" "}
+            or ~
+            <span className="font-semibold">
+              {cowCapacity} cow{cowCapacity !== 1 ? "s" : ""}
+            </span>
+          </p>
+        )}
+      </div>
+
+      {/* ── Irrigation Advantage ── */}
+      <div
+        className="space-y-2"
+        data-ocid="land_productivity.irrigation.section"
+      >
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          💧 Irrigation Advantage
+        </p>
+        {irrigationStrength === "strong" && (
+          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+            <p className="text-sm text-green-800 dark:text-green-300 font-medium">
+              ✅ This property has strong irrigation potential.
+            </p>
+            <p className="text-xs text-green-700 dark:text-green-400 mt-1">
+              Surface water with good access can extend your growing season and
+              support larger gardens.
+            </p>
+          </div>
+        )}
+        {irrigationStrength === "limited" && (
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+            <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+              ⚠️ Surface water is present but irrigation access is limited.
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+              Improving water access could significantly increase food
+              production potential.
+            </p>
+          </div>
+        )}
+        {irrigationStrength === "none" && (
+          <p className="text-sm text-muted-foreground">
+            No surface water irrigation advantage detected. Consider rainwater
+            collection or well-based irrigation.
+          </p>
+        )}
+      </div>
+
+      {/* ── Land Productivity Overview ── */}
+      <div
+        className="p-4 rounded-xl bg-accent/30 border border-border space-y-3"
+        data-ocid="land_productivity.overview.section"
+      >
+        <p className="text-sm font-semibold font-display">
+          Land Productivity Overview
+        </p>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-muted-foreground">Vegetable production</span>
+            <span className="font-medium text-right">
+              {gardenSqft > 0
+                ? `${peopleSupported} person${peopleSupported !== 1 ? "s" : ""} supported seasonally`
+                : "Not entered"}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-muted-foreground">Fruit production</span>
+            <span className="font-medium text-right">
+              {fruitOption.production}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-muted-foreground">
+              Wild protein potential
+            </span>
+            <span className={cn("font-semibold", wildProteinColor)}>
+              {wildProtein.label}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-muted-foreground">
+              Sustainable firewood yield
+            </span>
+            <span className="font-medium text-right">
+              {woodedAcres > 0
+                ? `${lowCords}–${highCords} cords/year`
+                : "No wooded acres entered"}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-muted-foreground">Grazing capacity</span>
+            <span className="font-medium text-right">
+              {pastureAcres > 0
+                ? `${goatCapacity} goat${goatCapacity !== 1 ? "s" : ""} or ${cowCapacity} cow${cowCapacity !== 1 ? "s" : ""}`
+                : "No pasture entered"}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-muted-foreground">Irrigation advantage</span>
+            <span
+              className={cn(
+                "font-medium",
+                irrigationStrength === "strong"
+                  ? "text-green-600 dark:text-green-400"
+                  : irrigationStrength === "limited"
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "",
+              )}
+            >
+              {irrigationStrength === "strong"
+                ? "Strong"
+                : irrigationStrength === "limited"
+                  ? "Limited"
+                  : "None"}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -105,6 +105,7 @@ export interface HeatingFuelData {
   propane_uses_water_heater: boolean;
   propane_uses_generator: boolean;
   winterTempBand?: WinterTempBand;
+  land_productivity?: LandProductivityData;
   snowDisruption?: SnowDisruption;
 }
 
@@ -123,5 +124,14 @@ export interface LocationProfile {
   land_water: LandWaterPillar;
   heating_fuel: HeatingFuelData;
   winterTempBand?: WinterTempBand;
+  land_productivity?: LandProductivityData;
   snowDisruption?: SnowDisruption;
+}
+
+export type FruitTreeCount = "none" | "1-5" | "6-15" | "15+";
+
+export interface LandProductivityData {
+  fruit_trees: FruitTreeCount;
+  wooded_acres: number;
+  pasture_acres: number;
 }

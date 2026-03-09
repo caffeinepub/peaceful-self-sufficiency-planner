@@ -30,6 +30,7 @@ import {
   EnergyForm,
   FoodForm,
   HeatingFuelForm,
+  LandProductivityForm,
   LandWaterForm,
   WaterForm,
 } from "../components/PillarForms";
@@ -44,7 +45,7 @@ import {
   computeTopUpgrades,
   getScoreLabel,
 } from "../scoring";
-import type { LocationProfile } from "../types";
+import type { LandProductivityData, LocationProfile } from "../types";
 
 const PILLAR_ICONS: Record<string, string> = {
   energy: "⚡",
@@ -559,6 +560,40 @@ export function LocationDetailPage() {
             />
           </div>
         </PillarCard>
+
+        {/* Land Productivity — advisory only, does not affect score */}
+        <div
+          className="bg-card border border-border rounded-xl overflow-hidden shadow-xs"
+          data-ocid="detail.land_productivity_card"
+        >
+          <div className="w-full flex items-center gap-3 p-4 bg-accent/10 border-b border-border">
+            <span className="text-xl">🌾</span>
+            <div>
+              <span className="font-display font-semibold text-base">
+                Land Productivity
+              </span>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Advisory only — does not affect your Peaceful Score
+              </p>
+            </div>
+          </div>
+          <div className="p-4 pt-3">
+            <LandProductivityForm
+              gardenSqft={draft.food.garden_sqft}
+              landWater={draft.land_water}
+              value={
+                draft.land_productivity ?? {
+                  fruit_trees: "none",
+                  wooded_acres: 0,
+                  pasture_acres: 0,
+                }
+              }
+              onChange={(v: LandProductivityData) =>
+                update("land_productivity", v)
+              }
+            />
+          </div>
+        </div>
 
         <SectionGroupDivider label="Winter Planning" />
 

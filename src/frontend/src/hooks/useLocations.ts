@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { SEED_LOCATIONS } from "../seedData";
 import type {
   HeatingFuelData,
+  LandProductivityData,
   LandWaterPillar,
   LocationProfile,
 } from "../types";
@@ -44,6 +45,12 @@ export const DEFAULT_HEATING_FUEL: HeatingFuelData = {
   snowDisruption: "occasional",
 };
 
+const DEFAULT_LAND_PRODUCTIVITY: LandProductivityData = {
+  fruit_trees: "none",
+  wooded_acres: 0,
+  pasture_acres: 0,
+};
+
 function generateId(): string {
   return `loc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -73,6 +80,7 @@ function migrateLocation(loc: LocationProfile): LocationProfile {
       winterTempBand: hf.winterTempBand ?? loc.winterTempBand ?? "cool",
       snowDisruption: hf.snowDisruption ?? loc.snowDisruption ?? "occasional",
     },
+    land_productivity: loc.land_productivity ?? DEFAULT_LAND_PRODUCTIVITY,
   };
 }
 
