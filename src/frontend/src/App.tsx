@@ -13,6 +13,7 @@ import { LocationDetailPage } from "./pages/LocationDetailPage";
 import { LocationsPage } from "./pages/LocationsPage";
 import { QuietWeekPage } from "./pages/QuietWeekPage";
 import { ResilienceTimelinePage } from "./pages/ResilienceTimelinePage";
+import { ScenarioSimulatorPage } from "./pages/ScenarioSimulatorPage";
 import { WinterLockdownPage } from "./pages/WinterLockdownPage";
 
 // Root route with layout
@@ -70,6 +71,12 @@ const resilienceTimelineRoute = createRoute({
   component: ResilienceTimelinePage,
 });
 
+const scenarioSimulatorRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/scenario-simulator",
+  component: ScenarioSimulatorPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   locationDetailRoute,
@@ -78,6 +85,7 @@ const routeTree = rootRoute.addChildren([
   aboutRoute,
   winterLockdownRoute,
   resilienceTimelineRoute,
+  scenarioSimulatorRoute,
 ]);
 
 const router = createRouter({ routeTree });

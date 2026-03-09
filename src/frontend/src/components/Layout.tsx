@@ -11,6 +11,7 @@ import {
   Moon,
   Snowflake,
   Sun,
+  Target,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -22,6 +23,7 @@ const NAV_LINKS = [
   { to: "/quiet-week", label: "Quiet Week", icon: Clock },
   { to: "/winter-lockdown", label: "Winter Mode", icon: Snowflake },
   { to: "/resilience-timeline", label: "Timeline", icon: Activity },
+  { to: "/scenario-simulator", label: "Scenarios", icon: Target },
   { to: "/about", label: "About", icon: Info },
 ];
 
