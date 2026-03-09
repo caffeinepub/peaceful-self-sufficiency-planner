@@ -1871,6 +1871,27 @@ function HeatingCoverageCard({ fuel }: { fuel: HeatingFuelData }) {
         </span>
       </div>
 
+      {/* Heat coverage bar */}
+      <div className="space-y-1">
+        <div className="w-full h-2.5 rounded-full bg-border overflow-hidden">
+          <div
+            className={cn(
+              "h-full rounded-full transition-all",
+              totalRounded >= 30
+                ? "bg-emerald-500"
+                : totalRounded >= 14
+                  ? "bg-amber-500"
+                  : "bg-red-500",
+            )}
+            style={{ width: `${Math.min(100, (totalRounded / 90) * 100)}%` }}
+          />
+        </div>
+        <div className="flex justify-between">
+          <span className="text-xs text-muted-foreground">0</span>
+          <span className="text-xs text-muted-foreground">90 days</span>
+        </div>
+      </div>
+
       {/* Breakdown */}
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-background rounded-lg border border-border px-3 py-2">

@@ -140,6 +140,18 @@ function ExplainPanel({ loc, scores }: ExplainPanelProps) {
   );
 }
 
+function SectionGroupDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 my-2">
+      <div className="h-px flex-1 bg-border" />
+      <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </span>
+      <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
 function PillarCard({
   icon,
   title,
@@ -455,11 +467,13 @@ export function LocationDetailPage() {
         );
       })()}
 
-      {/* Pillar Cards */}
+      {/* Pillar Cards — grouped by logical flow */}
       <div className="space-y-4">
+        <SectionGroupDivider label="Core Systems" />
+
         <PillarCard
           icon={PILLAR_ICONS.energy}
-          title="Energy Comfort"
+          title="Energy System"
           score={scores.energy}
           dataOcid="detail.energy_card"
         >
@@ -485,6 +499,8 @@ export function LocationDetailPage() {
           </div>
         </PillarCard>
 
+        <SectionGroupDivider label="Food Systems" />
+
         <PillarCard
           icon={PILLAR_ICONS.food}
           title="Food Continuity"
@@ -495,6 +511,8 @@ export function LocationDetailPage() {
             <FoodForm value={draft.food} onChange={(v) => update("food", v)} />
           </div>
         </PillarCard>
+
+        <SectionGroupDivider label="Home Independence" />
 
         <PillarCard
           icon={PILLAR_ICONS.comfort}
@@ -510,9 +528,11 @@ export function LocationDetailPage() {
           </div>
         </PillarCard>
 
+        <SectionGroupDivider label="Resilience Buffers" />
+
         <PillarCard
           icon={PILLAR_ICONS.buffers}
-          title="Buffers &amp; Rhythm"
+          title="Buffers & Rhythm"
           score={scores.buffers}
           dataOcid="detail.buffers_card"
         >
@@ -523,6 +543,8 @@ export function LocationDetailPage() {
             />
           </div>
         </PillarCard>
+
+        <SectionGroupDivider label="Land Resources" />
 
         <PillarCard
           icon={PILLAR_ICONS.land_water}
@@ -537,6 +559,8 @@ export function LocationDetailPage() {
             />
           </div>
         </PillarCard>
+
+        <SectionGroupDivider label="Winter Planning" />
 
         {/* Heating Fuel & House Context — not scored but used in Winter Mode */}
         <div
@@ -563,7 +587,7 @@ export function LocationDetailPage() {
         </div>
       </div>
 
-      {/* Explain My Score */}
+      {/* Explain My Score — moved to bottom */}
       <Accordion type="single" collapsible>
         <AccordionItem
           value="explain"
