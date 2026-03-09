@@ -28,6 +28,7 @@ const DEFAULT_LAND_WATER: LandWaterPillar = {
 
 export const DEFAULT_HEATING_FUEL: HeatingFuelData = {
   firewood_cords: 2,
+  max_firewood_storage: 0,
   propane_tank_preset: 100,
   propane_custom_gallons: 0,
   propane_fill_percent: 50,

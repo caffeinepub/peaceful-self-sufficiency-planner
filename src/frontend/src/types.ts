@@ -91,6 +91,7 @@ export type SnowDisruption = "rare" | "occasional" | "regular" | "heavy";
 
 export interface HeatingFuelData {
   firewood_cords: number;
+  max_firewood_storage?: number;
   propane_tank_preset: PropaneTankPreset;
   propane_custom_gallons: number;
   propane_fill_percent: number; // 0-100

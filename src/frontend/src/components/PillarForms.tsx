@@ -1062,6 +1062,32 @@ export function HeatingFuelForm({ value, onChange }: HeatingFuelFormProps) {
   const update = (patch: Partial<HeatingFuelData>) =>
     onChange({ ...value, ...patch });
 
+  const [showDimEstimator, setShowDimEstimator] = useState(false);
+  const [dimLength, setDimLength] = useState("");
+  const [dimDepth, setDimDepth] = useState("");
+  const [dimStackHeight, setDimStackHeight] = useState("");
+  const [dimWalkway, setDimWalkway] = useState<"none" | "small" | "moderate">(
+    "none",
+  );
+  const [dimStackStyle, setDimStackStyle] = useState<"neat" | "loose">("neat");
+
+  const dimLengthNum = Number.parseFloat(dimLength) || 0;
+  const dimDepthNum = Number.parseFloat(dimDepth) || 0;
+  const dimStackHeightNum = Number.parseFloat(dimStackHeight) || 0;
+  const hasAllDims =
+    dimLengthNum > 0 && dimDepthNum > 0 && dimStackHeightNum > 0;
+  const walkwayFactor =
+    dimWalkway === "none" ? 1.0 : dimWalkway === "small" ? 0.9 : 0.8;
+  const stackFactor = dimStackStyle === "neat" ? 1.0 : 0.9;
+  const estimatedCords = hasAllDims
+    ? (dimLengthNum *
+        dimDepthNum *
+        dimStackHeightNum *
+        walkwayFactor *
+        stackFactor) /
+      128
+    : 0;
+
   return (
     <div className="space-y-6">
       {/* ── Firewood ── */}
@@ -1094,6 +1120,196 @@ export function HeatingFuelForm({ value, onChange }: HeatingFuelFormProps) {
             />
             <span className="text-sm text-muted-foreground">cords</span>
           </div>
+
+          {/* Max firewood storage */}
+          <div className="flex items-center gap-3 max-w-xs">
+            <label
+              htmlFor="hf-max-storage"
+              className="text-sm text-muted-foreground whitespace-nowrap"
+            >
+              Maximum storage capacity
+            </label>
+            <input
+              id="hf-max-storage"
+              type="number"
+              min={0}
+              step={0.5}
+              value={value.max_firewood_storage ?? 0}
+              onChange={(e) =>
+                update({
+                  max_firewood_storage: Number.parseFloat(e.target.value) || 0,
+                })
+              }
+              className="w-24 rounded-md border border-input bg-background px-3 py-1.5 text-sm
+                text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              data-ocid="detail.fuel.max_storage_input"
+            />
+            <span className="text-sm text-muted-foreground">cords</span>
+          </div>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Optional. Set this to see how full your wood storage is.
+          </p>
+
+          {/* Woodshed Dimension Estimator */}
+          <div className="max-w-sm">
+            <button
+              type="button"
+              onClick={() => setShowDimEstimator((v) => !v)}
+              className="text-xs text-primary/80 hover:text-primary flex items-center gap-1 transition-colors"
+              data-ocid="detail.fuel.dim_estimator_toggle"
+            >
+              <span>{showDimEstimator ? "▾" : "▸"}</span>
+              <span>Estimate from woodshed dimensions</span>
+            </button>
+
+            {showDimEstimator && (
+              <div className="mt-3 p-3 rounded-lg border border-border bg-accent/10 space-y-3">
+                {/* Dimension inputs */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="dim-length"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Length (ft)
+                    </label>
+                    <input
+                      id="dim-length"
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={dimLength}
+                      onChange={(e) => setDimLength(e.target.value)}
+                      placeholder="0"
+                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      data-ocid="detail.fuel.dim_length_input"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="dim-depth"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Depth (ft)
+                    </label>
+                    <input
+                      id="dim-depth"
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={dimDepth}
+                      onChange={(e) => setDimDepth(e.target.value)}
+                      placeholder="0"
+                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      data-ocid="detail.fuel.dim_depth_input"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="dim-height"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Stack height (ft)
+                    </label>
+                    <input
+                      id="dim-height"
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={dimStackHeight}
+                      onChange={(e) => setDimStackHeight(e.target.value)}
+                      placeholder="0"
+                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      data-ocid="detail.fuel.dim_height_input"
+                    />
+                  </div>
+                </div>
+
+                {/* Adjustments */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="dim-walkway"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Walkway space
+                    </label>
+                    <select
+                      id="dim-walkway"
+                      value={dimWalkway}
+                      onChange={(e) =>
+                        setDimWalkway(
+                          e.target.value as "none" | "small" | "moderate",
+                        )
+                      }
+                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      data-ocid="detail.fuel.dim_walkway_select"
+                    >
+                      <option value="none">None</option>
+                      <option value="small">Small</option>
+                      <option value="moderate">Moderate</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="dim-stackstyle"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Stack style
+                    </label>
+                    <select
+                      id="dim-stackstyle"
+                      value={dimStackStyle}
+                      onChange={(e) =>
+                        setDimStackStyle(e.target.value as "neat" | "loose")
+                      }
+                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      data-ocid="detail.fuel.dim_stackstyle_select"
+                    >
+                      <option value="neat">Neat stacked</option>
+                      <option value="loose">Loose stacked</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Result */}
+                {hasAllDims && (
+                  <div className="flex items-center justify-between pt-1 border-t border-border">
+                    <span className="text-xs text-muted-foreground">
+                      Estimated storage capacity:
+                    </span>
+                    <span className="text-sm font-semibold text-foreground tabular-nums">
+                      {estimatedCords.toFixed(1)} cords
+                    </span>
+                  </div>
+                )}
+
+                {/* Use estimate button */}
+                {hasAllDims && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      update({
+                        max_firewood_storage: Number.parseFloat(
+                          estimatedCords.toFixed(1),
+                        ),
+                      });
+                      setShowDimEstimator(false);
+                    }}
+                    className="w-full rounded-md bg-primary/10 hover:bg-primary/20 border border-primary/20 px-3 py-1.5 text-xs font-medium text-primary transition-colors"
+                    data-ocid="detail.fuel.use_estimate_button"
+                  >
+                    Use this estimate
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Wood Storage Status */}
+          {(value.max_firewood_storage ?? 0) > 0 && (
+            <WoodStorageCard fuel={value} />
+          )}
 
           {/* Firewood role */}
           <div>
@@ -1484,6 +1700,123 @@ export function HeatingFuelForm({ value, onChange }: HeatingFuelFormProps) {
 
       {/* ── Heating Coverage Advisory ── */}
       <HeatingCoverageCard fuel={value} />
+    </div>
+  );
+}
+
+function WoodStorageCard({ fuel }: { fuel: HeatingFuelData }) {
+  const storageCapacity = fuel.max_firewood_storage ?? 0;
+  const cordsOnHand = fuel.firewood_cords;
+
+  if (storageCapacity <= 0) return null;
+
+  const storageUsedPercent = cordsOnHand / storageCapacity;
+  const remainingStorage = storageCapacity - cordsOnHand;
+  const gaugePercent = Math.min(storageUsedPercent * 100, 100);
+
+  let statusMsg: string;
+  let statusColor: string;
+  if (cordsOnHand >= storageCapacity) {
+    statusMsg =
+      "Wood storage is at capacity. Additional wood requires expanding storage.";
+    statusColor = "amber";
+  } else if (storageUsedPercent >= 0.8) {
+    statusMsg = "Wood storage nearly full.";
+    statusColor = "amber";
+  } else {
+    statusMsg = "Storage space available.";
+    statusColor = "green";
+  }
+
+  const fullFuel = { ...fuel, firewood_cords: storageCapacity };
+  const { totalDays: fullTotalDays } = computeHeatingCoverage(fullFuel);
+
+  const gaugeColor =
+    gaugePercent >= 100
+      ? "bg-red-500"
+      : gaugePercent >= 80
+        ? "bg-amber-500"
+        : "bg-emerald-500";
+
+  const statusTextColor =
+    statusColor === "green"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : "text-amber-600 dark:text-amber-400";
+
+  return (
+    <div
+      className="rounded-xl border border-border bg-accent/10 p-4 space-y-4"
+      data-ocid="detail.fuel.wood_storage_card"
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-base">🪵</span>
+        <p className="text-sm font-semibold text-foreground">
+          Wood Storage Status
+        </p>
+      </div>
+
+      {/* Data rows */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-muted-foreground">
+            Storage capacity
+          </span>
+          <span className="text-sm font-semibold text-foreground tabular-nums">
+            {storageCapacity} cords
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-muted-foreground">Cords on hand</span>
+          <span className="text-sm font-semibold text-foreground tabular-nums">
+            {cordsOnHand} cords
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-muted-foreground">Storage used</span>
+          <span className="text-sm font-semibold text-foreground tabular-nums">
+            {Math.round(storageUsedPercent * 100)}%
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-muted-foreground">Remaining space</span>
+          <span className="text-sm font-semibold text-foreground tabular-nums">
+            {Math.max(0, remainingStorage).toFixed(1)} cords
+          </span>
+        </div>
+      </div>
+
+      {/* Gauge bar */}
+      <div className="space-y-1">
+        <div className="w-full h-2.5 rounded-full bg-border overflow-hidden">
+          <div
+            className={cn("h-full rounded-full transition-all", gaugeColor)}
+            style={{ width: `${gaugePercent}%` }}
+          />
+        </div>
+        <div className="flex justify-between">
+          <span className="text-xs text-muted-foreground">0</span>
+          <span className="text-xs text-muted-foreground">
+            {storageCapacity} cords
+          </span>
+        </div>
+      </div>
+
+      {/* Status message */}
+      <p className={cn("text-xs font-medium", statusTextColor)}>{statusMsg}</p>
+
+      {/* Full storage coverage estimate */}
+      <div className="border-t border-border pt-3 flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">
+          Estimated coverage if storage full:
+        </span>
+        <span className="text-xs font-semibold text-foreground tabular-nums">
+          {Math.round(fullTotalDays)} days
+        </span>
+      </div>
+
+      <p className="text-xs text-muted-foreground/70 italic">
+        Advisory only. Actual coverage varies by stove efficiency and usage.
+      </p>
     </div>
   );
 }

@@ -1,37 +1,32 @@
 # Peaceful Self-Sufficiency Planner
 
 ## Current State
-
-- HeatingFuelForm in PillarForms.tsx includes a HeatingCoverageCard with computeHeatingCoverage logic already implemented
-- Card icon is 🌡️ and propane logic uses a 30-day planning horizon for non-heating drain
-- Winter Mode (WinterLockdownPage) is an existing route
-- Nav has: Locations, Compare, Quiet Week, Winter Mode, About
-- No Resilience Timeline page exists
+Under Heating Fuel & House Context, there is a "Maximum storage capacity (cords)" input field. Below it, when a value is set, a WoodStorageCard advisory component renders, which includes an "Estimated Woodshed Size" sub-section that automatically calculates and displays physical woodshed dimensions (standard and compact layouts) based on the storage capacity.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Export `computeHeatingCoverage` as a shared utility (heatingCalc.ts) used by both PillarForms and the new timeline page
-- New ResilienceTimelinePage at route `/resilience-timeline`
-  - Location selector + people stepper
-  - Computes: heatDays, batteryDays, waterDays, foodDays, feedDays
-  - Visual horizontal bars for each resource
-  - Limiting factor + Comfort horizon insights
-  - Advisory note: "These estimates are advisory and depend on weather, stove efficiency, and usage habits."
-- Nav link "Resilience Timeline" after Winter Mode
+- An optional collapsible section below the "Maximum storage capacity" field labeled "Estimate from woodshed dimensions"
+- When expanded, shows three dimension inputs: Length (ft), Depth (ft), Stack height (ft)
+- Two optional adjustment selectors: Walkway space (none / small / moderate) and Stack style (neat stacked / loose stacked)
+- Live calculation display: `totalVolume = length × depth × stackHeight`, then `usableVolume = totalVolume × walkwayFactor × stackStyleFactor`, then `estimatedCapacityCords = usableVolume / 128`
+  - Walkway: none=1.0, small=0.9, moderate=0.8
+  - Stack style: neat stacked=1.0, loose stacked=0.9
+- Shows result: "Estimated storage capacity: X.X cords"
+- "Use this estimate" button that, when clicked, fills the Maximum storage capacity field with the estimated value
+- State for this estimator is local (not saved to location data)
 
 ### Modify
-- HeatingCoverageCard icon: 🌡️ → 🔥
-- HeatingCoverageCard title: update to match spec ("🔥 Heating Coverage (Estimated)")
-- PillarForms imports computeHeatingCoverage from shared heatingCalc.ts
+- Remove the "Estimated Woodshed Size" advisory sub-section from WoodStorageCard (the old auto-calculated dimensions box)
+- The flow is reversed: dimensions → capacity estimate, instead of capacity → dimensions display
 
 ### Remove
-- Nothing removed
+- The automatic Estimated Woodshed Size box that was shown inside WoodStorageCard based on storage capacity
 
 ## Implementation Plan
-
-1. Create `src/frontend/src/heatingCalc.ts` — export computeHeatingCoverage and computeBestImprovement (moved from PillarForms)
-2. Update PillarForms.tsx — remove inline compute functions, import from heatingCalc.ts, update card icon to 🔥
-3. Create `src/frontend/src/pages/ResilienceTimelinePage.tsx` — full page with resource bars, insights
-4. Update App.tsx — add route `/resilience-timeline`
-5. Update Layout.tsx — add nav link for Resilience Timeline
+1. In PillarForms.tsx, find the max_firewood_storage input block
+2. Add local state for: `showDimEstimator` (boolean toggle), `dimLength`, `dimDepth`, `dimStackHeight`, `walkway` (none/small/moderate), `stackStyle` (neat/loose)
+3. After the max storage input and helper text, add a toggle button/link: "Estimate from woodshed dimensions" that shows/hides the estimator
+4. When open, render dimension inputs and adjustment selectors, live calculate the estimate, display it, and show "Use this estimate" button
+5. "Use this estimate" calls update({ max_firewood_storage: estimatedValue }) and optionally collapses the estimator
+6. Remove the Estimated Woodshed Size section from WoodStorageCard
