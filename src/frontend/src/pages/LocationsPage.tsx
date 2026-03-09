@@ -40,6 +40,7 @@ import { MiniScoreRing } from "../components/ScoreRing";
 import { useLocations } from "../hooks/useLocations";
 import { computeOverallScore } from "../scoring";
 import { SEED_LOCATIONS } from "../seedData";
+import { STARTER_PROFILES } from "../starterProfiles";
 import type { LocationProfile } from "../types";
 
 function formatDate(iso: string): string {
@@ -126,6 +127,7 @@ interface AddLocationForm {
   name: string;
   state: string;
   notes: string;
+  selectedProfileId: string;
 }
 
 export function LocationsPage() {
@@ -144,6 +146,7 @@ export function LocationsPage() {
     name: "",
     state: "",
     notes: "",
+    selectedProfileId: "",
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -159,15 +162,42 @@ export function LocationsPage() {
       toast.error("Location name is required");
       return;
     }
+    let profileFields = DEFAULT_PROFILE;
+    if (form.selectedProfileId) {
+      const profile = STARTER_PROFILES.find(
+        (p) => p.id === form.selectedProfileId,
+      );
+      if (profile) {
+        profileFields = {
+          ...DEFAULT_PROFILE,
+          energy: profile.energy,
+          water: profile.water,
+          food: profile.food,
+          comfort: profile.comfort,
+          buffers: profile.buffers,
+          heating_fuel: {
+            ...DEFAULT_PROFILE.heating_fuel,
+            ...profile.heating_fuel,
+          },
+        };
+      }
+    }
     const newLoc = addLocation({
-      ...DEFAULT_PROFILE,
+      ...profileFields,
       name: form.name.trim(),
       state: form.state.trim(),
       notes: form.notes.trim(),
     });
     setAddDialogOpen(false);
-    setForm({ name: "", state: "", notes: "" });
-    toast.success(`"${newLoc.name}" created`);
+    setForm({ name: "", state: "", notes: "", selectedProfileId: "" });
+    const profileName = form.selectedProfileId
+      ? STARTER_PROFILES.find((p) => p.id === form.selectedProfileId)?.name
+      : null;
+    if (profileName) {
+      toast.success(`"${newLoc.name}" created with ${profileName} profile`);
+    } else {
+      toast.success(`"${newLoc.name}" created`);
+    }
     navigate({ to: "/location/$id", params: { id: newLoc.id } });
   }, [form, addLocation, navigate]);
 
@@ -193,6 +223,20 @@ export function LocationsPage() {
     },
     [importLocations],
   );
+
+  // All profile options: default blank + 5 starter profiles
+  const profileOptions = [
+    {
+      id: "",
+      name: "Default (blank)",
+      description: "Start with empty fields and fill everything yourself",
+    },
+    ...STARTER_PROFILES.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+    })),
+  ];
 
   return (
     <div className="space-y-6">
@@ -406,8 +450,15 @@ export function LocationsPage() {
       </div>
 
       {/* Add Location Dialog */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog
+        open={addDialogOpen}
+        onOpenChange={(open) => {
+          setAddDialogOpen(open);
+          if (!open)
+            setForm({ name: "", state: "", notes: "", selectedProfileId: "" });
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-display">New Location</DialogTitle>
             <DialogDescription>
@@ -415,7 +466,53 @@ export function LocationsPage() {
               profile.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-5 py-2">
+            {/* Profile picker */}
+            <div
+              className="space-y-2"
+              data-ocid="add_location.profile_picker.section"
+            >
+              <Label className="text-sm font-medium">
+                Start from a profile{" "}
+                <span className="text-muted-foreground font-normal">
+                  (optional)
+                </span>
+              </Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {profileOptions.map((opt, idx) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({ ...f, selectedProfileId: opt.id }))
+                    }
+                    data-ocid={`add_location.profile.item.${idx + 1}`}
+                    className={cn(
+                      "text-left p-2.5 rounded-lg border-2 transition-all text-sm hover:border-primary/50 hover:bg-primary/5",
+                      form.selectedProfileId === opt.id
+                        ? "border-primary bg-primary/8 ring-1 ring-primary/20"
+                        : opt.id === ""
+                          ? "border-border/50 bg-muted/30"
+                          : "border-border bg-card",
+                    )}
+                  >
+                    <p className="font-medium text-xs leading-tight">
+                      {opt.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-snug line-clamp-2">
+                      {opt.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              {form.selectedProfileId && (
+                <p className="text-xs text-muted-foreground italic">
+                  These are starting assumptions — adjust anything to match your
+                  property.
+                </p>
+              )}
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="new-name">Location name *</Label>
               <Input
@@ -451,7 +548,7 @@ export function LocationsPage() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, notes: e.target.value }))
                 }
-                rows={3}
+                rows={2}
                 data-ocid="locations.textarea"
               />
             </div>
@@ -461,7 +558,12 @@ export function LocationsPage() {
               variant="outline"
               onClick={() => {
                 setAddDialogOpen(false);
-                setForm({ name: "", state: "", notes: "" });
+                setForm({
+                  name: "",
+                  state: "",
+                  notes: "",
+                  selectedProfileId: "",
+                });
               }}
               data-ocid="locations.cancel_button"
             >

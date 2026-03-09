@@ -21,6 +21,7 @@ import {
   MapPin,
   Save,
   TrendingUp,
+  X,
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ import {
   computeTopUpgrades,
   getScoreLabel,
 } from "../scoring";
+import { STARTER_PROFILES } from "../starterProfiles";
 import type { LandProductivityData, LocationProfile } from "../types";
 
 const PILLAR_ICONS: Record<string, string> = {
@@ -208,6 +210,37 @@ export function LocationDetailPage() {
   const scores = draft ? computeAllScores(draft) : null;
   const upgrade = draft ? computeNextBestUpgrade(draft) : null;
 
+  // Re-apply starter profile state
+  const [reapplyOpen, setReapplyOpen] = useState(false);
+  const [reapplySelectedId, setReapplySelectedId] = useState("");
+
+  const handleApplyProfile = useCallback(
+    (profileId: string) => {
+      const profile = STARTER_PROFILES.find((p) => p.id === profileId);
+      if (!profile || !draft) return;
+      setDraft((prev) =>
+        prev
+          ? {
+              ...prev,
+              energy: profile.energy,
+              water: profile.water,
+              food: profile.food,
+              comfort: profile.comfort,
+              buffers: profile.buffers,
+              heating_fuel: {
+                ...(prev.heating_fuel ?? DEFAULT_HEATING_FUEL),
+                ...profile.heating_fuel,
+              },
+            }
+          : prev,
+      );
+      toast.success(`Starter profile applied: ${profile.name}`);
+      setReapplyOpen(false);
+      setReapplySelectedId("");
+    },
+    [draft],
+  );
+
   const [targetScore, setTargetScore] = useState<number>(() => {
     if (!source) return 75;
     const overall = computeAllScores(source).overall;
@@ -331,6 +364,90 @@ export function LocationDetailPage() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Re-apply starter profile */}
+      <div data-ocid="location_detail.reapply_profile.section">
+        {!reapplyOpen ? (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setReapplyOpen(true)}
+              className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 transition-colors"
+              data-ocid="location_detail.reapply_profile.button"
+            >
+              Re-apply a starter profile
+            </button>
+          </div>
+        ) : (
+          <div className="bg-accent/10 border border-accent/30 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Re-apply a starter profile</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setReapplyOpen(false);
+                  setReapplySelectedId("");
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Close"
+                data-ocid="location_detail.reapply_profile.close_button"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This will overwrite your current settings with the selected
+              profile's defaults.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {STARTER_PROFILES.map((profile, idx) => (
+                <button
+                  key={profile.id}
+                  type="button"
+                  onClick={() => setReapplySelectedId(profile.id)}
+                  data-ocid={`location_detail.reapply_profile.item.${idx + 1}`}
+                  className={cn(
+                    "text-left p-2.5 rounded-lg border-2 transition-all hover:border-primary/50 hover:bg-primary/5",
+                    reapplySelectedId === profile.id
+                      ? "border-primary bg-primary/8 ring-1 ring-primary/20"
+                      : "border-border bg-card",
+                  )}
+                >
+                  <p className="font-medium text-xs leading-tight">
+                    {profile.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug line-clamp-2">
+                    {profile.description}
+                  </p>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setReapplyOpen(false);
+                  setReapplySelectedId("");
+                }}
+                data-ocid="location_detail.reapply_profile.cancel_button"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={!reapplySelectedId}
+                onClick={() =>
+                  reapplySelectedId && handleApplyProfile(reapplySelectedId)
+                }
+                data-ocid="location_detail.reapply_profile.confirm_button"
+              >
+                Apply Profile
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Radar Chart */}
