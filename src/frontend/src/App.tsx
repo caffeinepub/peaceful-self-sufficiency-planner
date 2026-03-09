@@ -12,6 +12,7 @@ import { ComparePage } from "./pages/ComparePage";
 import { LocationDetailPage } from "./pages/LocationDetailPage";
 import { LocationsPage } from "./pages/LocationsPage";
 import { QuietWeekPage } from "./pages/QuietWeekPage";
+import { ResilienceTimelinePage } from "./pages/ResilienceTimelinePage";
 import { WinterLockdownPage } from "./pages/WinterLockdownPage";
 
 // Root route with layout
@@ -63,6 +64,12 @@ const winterLockdownRoute = createRoute({
   component: WinterLockdownPage,
 });
 
+const resilienceTimelineRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/resilience-timeline",
+  component: ResilienceTimelinePage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   locationDetailRoute,
@@ -70,6 +77,7 @@ const routeTree = rootRoute.addChildren([
   quietWeekRoute,
   aboutRoute,
   winterLockdownRoute,
+  resilienceTimelineRoute,
 ]);
 
 const router = createRouter({ routeTree });

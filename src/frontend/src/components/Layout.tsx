@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
+  Activity,
   BarChart2,
   Clock,
   Info,
@@ -20,6 +21,7 @@ const NAV_LINKS = [
   { to: "/compare", label: "Compare", icon: BarChart2 },
   { to: "/quiet-week", label: "Quiet Week", icon: Clock },
   { to: "/winter-lockdown", label: "Winter Mode", icon: Snowflake },
+  { to: "/resilience-timeline", label: "Timeline", icon: Activity },
   { to: "/about", label: "About", icon: Info },
 ];
 
