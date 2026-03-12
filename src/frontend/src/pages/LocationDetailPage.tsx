@@ -58,6 +58,332 @@ const PILLAR_ICONS: Record<string, string> = {
   land_water: "🌿",
 };
 
+// ─── Heating coverage helper ────────────────────────────────────────────────
+function computeHeatDays(loc: LocationProfile): number {
+  const hf = loc.heating_fuel ?? DEFAULT_HEATING_FUEL;
+  const priorityFactor =
+    hf.heating_priority === "whole_house"
+      ? 1.0
+      : hf.heating_priority === "living_area"
+        ? 0.6
+        : 0.35;
+  const insulationFactor =
+    hf.insulation_level === "poor"
+      ? 1.35
+      : hf.insulation_level === "good"
+        ? 0.8
+        : hf.insulation_level === "excellent"
+          ? 0.65
+          : 1.0;
+  const tempFactor =
+    (hf.winterTempBand ?? "cool") === "mild"
+      ? 0.8
+      : (hf.winterTempBand ?? "cool") === "cold"
+        ? 1.2
+        : (hf.winterTempBand ?? "cool") === "very_cold"
+          ? 1.4
+          : 1.0;
+  const demandFactor = priorityFactor * insulationFactor * tempFactor;
+  const roleMultiplier =
+    hf.firewood_role === "secondary"
+      ? 0.5
+      : hf.firewood_role === "occasional"
+        ? 0.2
+        : 1.0;
+  const woodDays =
+    ((hf.firewood_cords * 7) / Math.max(demandFactor, 0.01)) * roleMultiplier;
+
+  const tankGallons =
+    hf.propane_tank_preset === "custom"
+      ? hf.propane_custom_gallons
+      : (hf.propane_tank_preset as number);
+  const usableGallons = (tankGallons * hf.propane_fill_percent) / 100;
+  const otherPerDay =
+    (hf.propane_uses_cooking ? 0.2 : 0) +
+    (hf.propane_uses_water_heater ? 0.5 : 0) +
+    (hf.propane_uses_generator ? 0.8 : 0);
+  const heatGallonsPerDay = 2.0 * demandFactor;
+  const usableForHeat = Math.max(usableGallons - otherPerDay * 30, 0);
+  const propaneDays = hf.propane_uses_heating
+    ? usableForHeat / Math.max(heatGallonsPerDay, 0.01)
+    : 0;
+
+  if (hf.firewood_role === "occasional") {
+    return propaneDays + woodDays * 0.3;
+  }
+  return woodDays + propaneDays;
+}
+
+// ─── Property Insights ──────────────────────────────────────────────────────
+type InsightCategory = "strength" | "watch" | "opportunity";
+interface Insight {
+  category: InsightCategory;
+  icon: string;
+  text: string;
+}
+
+function computeInsights(loc: LocationProfile): Insight[] {
+  const { energy: e, water: w, food: f, buffers: b, land_water: lw } = loc;
+  const hf = loc.heating_fuel ?? DEFAULT_HEATING_FUEL;
+  const heatDays = computeHeatDays(loc);
+  const lp = loc.land_productivity;
+  const woodedAcres = lp?.wooded_acres ?? 0;
+
+  const strengths: Insight[] = [];
+  const watches: Insight[] = [];
+  const opportunities: Insight[] = [];
+
+  // ── Energy ──
+  const hasSolar = e.solar_kw > 0;
+  const hasBattery = e.battery_kwh > 0;
+  if (hasSolar && hasBattery && e.generator) {
+    strengths.push({
+      category: "strength",
+      icon: "⚡",
+      text: "Energy independence is strong — solar, battery, and generator all in place.",
+    });
+  } else if (hasSolar && hasBattery) {
+    strengths.push({
+      category: "strength",
+      icon: "⚡",
+      text: "Solar with battery storage provides reliable backup power.",
+    });
+  } else if (!hasSolar && !e.generator) {
+    watches.push({
+      category: "watch",
+      icon: "⚡",
+      text: "No off-grid power source on site — grid dependency is high.",
+    });
+  }
+  if (hasSolar && !hasBattery) {
+    opportunities.push({
+      category: "opportunity",
+      icon: "⚡",
+      text: "Adding battery storage would retain solar energy through nights and cloudy days.",
+    });
+  }
+
+  // ── Water ──
+  if (w.primary_source === "spring" || w.gravity_option) {
+    strengths.push({
+      category: "strength",
+      icon: "💧",
+      text: "Reliable natural water source improves resilience without depending on power.",
+    });
+  } else if (w.storage_gallons >= 500) {
+    strengths.push({
+      category: "strength",
+      icon: "💧",
+      text: `${w.storage_gallons} gallons of stored water provides a solid short-term reserve.`,
+    });
+  } else if (w.storage_gallons < 100) {
+    watches.push({
+      category: "watch",
+      icon: "💧",
+      text: "Water storage is limited — a short disruption could quickly expose this gap.",
+    });
+  }
+  if (!w.gravity_option && w.primary_source !== "spring") {
+    opportunities.push({
+      category: "opportunity",
+      icon: "💧",
+      text: "A gravity-fed option would keep water flowing even without electricity.",
+    });
+  }
+
+  // ── Food ──
+  if (f.stored_food_months >= 3) {
+    strengths.push({
+      category: "strength",
+      icon: "🌱",
+      text: `${f.stored_food_months} months of stored food is a meaningful cushion for extended disruptions.`,
+    });
+  } else if (f.stored_food_months < 1) {
+    watches.push({
+      category: "watch",
+      icon: "🌱",
+      text: "Food reserves are minimal — less than one month of stored food on hand.",
+    });
+  }
+  if (f.garden_sqft < 400) {
+    opportunities.push({
+      category: "opportunity",
+      icon: "🌱",
+      text: "Vegetable production potential is limited — a larger garden would meaningfully boost food security.",
+    });
+  }
+
+  // ── Heating ──
+  if (heatDays >= 30) {
+    strengths.push({
+      category: "strength",
+      icon: "🔥",
+      text: `Heating reserves are strong — estimated ${Math.round(heatDays)} days of coverage.`,
+    });
+  } else if (
+    heatDays < 20 &&
+    (hf.firewood_cords > 0 || hf.propane_uses_heating)
+  ) {
+    watches.push({
+      category: "watch",
+      icon: "🔥",
+      text: `Winter heating reserves are modest — estimated ${Math.round(heatDays)} days of coverage.`,
+    });
+  }
+  if (heatDays >= 10 && heatDays < 30) {
+    opportunities.push({
+      category: "opportunity",
+      icon: "🔥",
+      text: "Increasing firewood or propane reserves would extend winter heating coverage.",
+    });
+  }
+
+  // ── Land / Woodland ──
+  if (lw.woods_percent > 30 || woodedAcres >= 5) {
+    strengths.push({
+      category: "strength",
+      icon: "🌿",
+      text: "Strong woodland resources support long-term firewood production and wildlife habitat.",
+    });
+  } else if (lw.woods_percent < 10 && woodedAcres < 2) {
+    opportunities.push({
+      category: "opportunity",
+      icon: "🌿",
+      text: "Limited woodland — planting trees would build long-term firewood and habitat value.",
+    });
+  }
+
+  // ── Wildlife ──
+  const hasWildlife =
+    lw.deer_sign === "occasional" ||
+    lw.deer_sign === "frequent" ||
+    lw.fish_present === "some" ||
+    lw.fish_present === "good" ||
+    (lw.other_game &&
+      lw.other_game.length > 0 &&
+      !lw.other_game.every((g) => g === "none" || g === "unknown"));
+  if (hasWildlife && lw.has_surface_water) {
+    strengths.push({
+      category: "strength",
+      icon: "🦌",
+      text: "Wildlife presence combined with surface water indicates a productive natural ecosystem.",
+    });
+  }
+
+  // ── Buffers ──
+  if (b.fuel_reserve_days >= 30) {
+    strengths.push({
+      category: "strength",
+      icon: "🔧",
+      text: "Good fuel reserves support extended outages without resupply.",
+    });
+  } else if (b.fuel_reserve_days < 7) {
+    watches.push({
+      category: "watch",
+      icon: "🔧",
+      text: "Fuel reserves are limited — consider building up to at least a 2-week buffer.",
+    });
+  }
+
+  // Cap to ~2 per category, total max 6
+  const picked: Insight[] = [
+    ...strengths.slice(0, 2),
+    ...watches.slice(0, 2),
+    ...opportunities.slice(0, 2),
+  ].slice(0, 6);
+
+  return picked;
+}
+
+function PropertyInsightsCard({ loc }: { loc: LocationProfile }) {
+  const insights = computeInsights(loc);
+  const grouped = {
+    strength: insights.filter((i) => i.category === "strength"),
+    watch: insights.filter((i) => i.category === "watch"),
+    opportunity: insights.filter((i) => i.category === "opportunity"),
+  };
+
+  if (insights.length === 0) return null;
+
+  const sections: {
+    key: InsightCategory;
+    label: string;
+    color: string;
+    dot: string;
+  }[] = [
+    {
+      key: "strength",
+      label: "Strengths",
+      color: "text-emerald-700 dark:text-emerald-400",
+      dot: "bg-emerald-500",
+    },
+    {
+      key: "watch",
+      label: "Watch Areas",
+      color: "text-amber-700 dark:text-amber-400",
+      dot: "bg-amber-500",
+    },
+    {
+      key: "opportunity",
+      label: "Opportunities",
+      color: "text-sky-700 dark:text-sky-400",
+      dot: "bg-sky-500",
+    },
+  ];
+
+  return (
+    <div
+      className="bg-card border border-border rounded-xl overflow-hidden shadow-xs"
+      data-ocid="detail.property_insights_card"
+    >
+      <div className="flex items-center gap-3 p-4 bg-accent/10 border-b border-border">
+        <span className="text-xl">🔍</span>
+        <div>
+          <span className="font-display font-semibold text-base">
+            Property Insights
+          </span>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Observations based on your current inputs — does not affect your
+            Peaceful Score
+          </p>
+        </div>
+      </div>
+      <div className="p-4 space-y-4">
+        {sections.map(({ key, label, color, dot }) => {
+          const items = grouped[key];
+          if (items.length === 0) return null;
+          return (
+            <div key={key}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`w-2 h-2 rounded-full ${dot} shrink-0`} />
+                <span
+                  className={`text-xs font-semibold uppercase tracking-wide ${color}`}
+                >
+                  {label}
+                </span>
+              </div>
+              <ul className="space-y-1.5">
+                {items.map((insight) => (
+                  <li
+                    key={insight.text}
+                    className="flex items-start gap-2.5 text-sm text-foreground/90"
+                  >
+                    <span className="shrink-0 mt-px text-base leading-none">
+                      {insight.icon}
+                    </span>
+                    <span>{insight.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── ExplainPanel ────────────────────────────────────────────────────────────
 interface ExplainPanelProps {
   loc: LocationProfile;
   scores: ReturnType<typeof computeAllScores>;
@@ -467,6 +793,9 @@ export function LocationDetailPage() {
           size={300}
         />
       </div>
+
+      {/* Property Insights — advisory, near top, after radar */}
+      <PropertyInsightsCard loc={draft} />
 
       {/* Next Best Upgrade */}
       {upgrade && (
