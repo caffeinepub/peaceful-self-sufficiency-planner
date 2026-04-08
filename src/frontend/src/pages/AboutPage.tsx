@@ -1,21 +1,6 @@
 import { BarChart2, Download, Leaf, Shield, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useActor } from "../hooks/useActor";
 
 export function AboutPage() {
-  const { actor, isFetching } = useActor();
-  const [visitorCount, setVisitorCount] = useState<bigint | null>(null);
-
-  useEffect(() => {
-    if (!actor || isFetching) return;
-    (actor as any)
-      .incrementVisitorCount()
-      .then((count: bigint) => {
-        setVisitorCount(count);
-      })
-      .catch(() => {});
-  }, [actor, isFetching]);
-
   return (
     <div className="max-w-2xl mx-auto space-y-10">
       {/* Header */}
@@ -210,12 +195,8 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* Visitor counter */}
-      {visitorCount !== null && (
-        <p className="text-sm text-muted-foreground text-center pb-4">
-          {visitorCount.toString()}
-        </p>
-      )}
+      {/* Version */}
+      <p className="text-xs text-muted-foreground text-center pb-4">v1.07</p>
     </div>
   );
 }
